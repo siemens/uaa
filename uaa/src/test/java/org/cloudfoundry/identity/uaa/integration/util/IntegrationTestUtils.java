@@ -1141,6 +1141,38 @@ public class IntegrationTestUtils {
         return getAuthorizationCodeTokenMap(serverRunning, testAccounts, clientId, clientSecret, username, password)
           .get("access_token");
     }
+    
+    /*
+     * Integration Test of Authorization Code Grant with PKCE
+     */
+    public static Map<String, String> getAuthorizationCodeTokenMapWithPKCE(ServerRunning serverRunning,
+            															   UaaTestAccounts testAccounts,
+            															   String clientId,
+            															   String clientSecret,
+            															   String username,
+            															   String password,
+            															   String codeChallenge,
+                                                                           String codeChallengeMethod,
+                                                                           String codeVerifier) throws Exception {
+    	AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
+    	resource.setClientId(clientId);
+    	resource.setClientSecret(clientSecret);
+
+    	return getAuthorizationCodeTokenMap(serverRunning,
+    	  testAccounts,
+    	  clientId,
+    	  clientSecret,
+    	  username,
+    	  password,
+    	  null,
+    	  null,
+    	  resource.getPreEstablishedRedirectUri(),
+    	  null,
+    	  true,
+    	  codeChallenge,
+    	  codeChallengeMethod,
+    	  codeVerifier);
+    }
 
     public static Map<String, String> getAuthorizationCodeTokenMap(ServerRunning serverRunning,
                                                                    UaaTestAccounts testAccounts,
@@ -1162,7 +1194,10 @@ public class IntegrationTestUtils {
           null,
           resource.getPreEstablishedRedirectUri(),
           null,
-          true);
+          true,
+          null,
+		  null,
+		  null);
     }
 
     public static HttpHeaders getHeaders(CookieStore cookies) {
@@ -1186,7 +1221,10 @@ public class IntegrationTestUtils {
                                                                    String jSessionId,
                                                                    String redirectUri,
                                                                    String loginHint,
-                                                                   boolean callCheckToken) throws Exception {
+                                                                   boolean callCheckToken,
+                                                                   String codeChallenge,
+                                                                   String codeChallengeMethod,
+                                                                   String codeVerifier) throws Exception {
         BasicCookieStore cookies = new BasicCookieStore();
         if (hasText(jSessionId)) {
             cookies.addCookie(new BasicClientCookie("JSESSIONID", jSessionId));
@@ -1203,6 +1241,18 @@ public class IntegrationTestUtils {
         if (hasText(loginHint)) {
             builder = builder.queryParam("login_hint", loginHint);
         }
+        /*
+         * Added PKCE parameters to authorize request 
+         */
+        if (hasText(codeChallenge)) {
+            builder = builder.queryParam("code_challenge", codeChallenge);
+        }
+        if (hasText(codeChallengeMethod)) {
+            builder = builder.queryParam("code_challenge_method", codeChallengeMethod);
+        }
+        /*
+         * End of code
+         */
         URI uri = builder.build();
 
         ResponseEntity<Void> result =
@@ -1296,6 +1346,13 @@ public class IntegrationTestUtils {
             formData.add("response_type", tokenResponseType);
         }
         formData.add("code", location.split("code=")[1].split("&")[0]);
+        /*
+         * Added PKCE parameters to token request
+         */
+        if (hasText(codeVerifier)) {
+            formData.add("code_verifier", codeVerifier);
+        }
+        // End
         HttpHeaders tokenHeaders = new HttpHeaders();
         tokenHeaders.set("Authorization", testAccounts.getAuthorizationHeader(clientId, clientSecret));
         @SuppressWarnings("rawtypes")

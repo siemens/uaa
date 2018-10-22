@@ -45,6 +45,12 @@ public class AuthorizationCodeGrantIntegrationTests {
         testSuccessfulAuthorizationCodeFlow_Internal();
         testSuccessfulAuthorizationCodeFlow_Internal();
     }
+    @Test
+    public void testSuccessfulAuthorizationCodeFlowWithPKCE() throws Exception {
+        testSuccessfulAuthorizationCodeFlowWithPKCE_Internal();
+        testSuccessfulAuthorizationCodeFlowWithPKCE_Internal();
+    }
+    
     public void testSuccessfulAuthorizationCodeFlow_Internal() throws Exception {
         AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
 
@@ -54,6 +60,23 @@ public class AuthorizationCodeGrantIntegrationTests {
                                                                                      resource.getClientSecret(),
                                                                                      testAccounts.getUserName(),
                                                                                      testAccounts.getPassword());
+        Jwt token = JwtHelper.decode(body.get("access_token"));
+        assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"aud\""));
+        assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"user_id\""));
+    }
+    
+    public void testSuccessfulAuthorizationCodeFlowWithPKCE_Internal() throws Exception {
+        AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
+
+        Map<String, String> body = IntegrationTestUtils.getAuthorizationCodeTokenMapWithPKCE(serverRunning,
+                                                                                     testAccounts,
+                                                                                     resource.getClientId(),
+                                                                                     resource.getClientSecret(),
+                                                                                     testAccounts.getUserName(),
+                                                                                     testAccounts.getPassword(),
+                                                                                     testAccounts.getCodeChallenge(),
+                                                                                     testAccounts.getCodeChallengeMethod(),
+                                                                                     testAccounts.getCodeVerifier());
         Jwt token = JwtHelper.decode(body.get("access_token"));
         assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"aud\""));
         assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"user_id\""));

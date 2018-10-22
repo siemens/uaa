@@ -283,4 +283,17 @@ public class UaaTestAccounts implements TestAccounts {
         jdbcTemplate.update(INSERT_BARE_BONE_USER, id, username, "password", username+"@test.com", zoneId);
         return id;
     }
+    /*
+     * PKCE test data
+     */
+    public String getCodeChallenge() {
+    	return "4E2E5C1F503CCE974951F481FC9C8B5FD7963836E60A0167596E6F05B20F97FC";
+    }
+    public String getCodeChallengeMethod() {
+    	return "S256";
+    }
+    public String getCodeVerifier() {
+    	return "testcode";
+    }
+    // End of PKCE test data
 }

@@ -33,7 +33,6 @@ import org.cloudfoundry.identity.uaa.scim.ScimGroupExternalMember;
 import org.cloudfoundry.identity.uaa.scim.ScimUser;
 import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
-import org.cloudfoundry.identity.uaa.util.RetryRule;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneConfiguration;
 import org.flywaydb.core.internal.util.StringUtils;
@@ -979,7 +978,10 @@ public class SamlLoginIT {
                                                                                                      cookie.getValue(),
                                                                                                      zoneUrl,
                                                                                                      null,
-                                                                                                     false);
+                                                                                                     false,
+                                                                                                     null,
+                                                                                                     null,
+                                                                                                     null);
 
         webDriver.get(baseUrl + "/logout.do");
         webDriver.get(zoneUrl + "/logout.do");
@@ -1205,7 +1207,10 @@ public class SamlLoginIT {
                                                                                                      cookie.getValue(),
                                                                                                      zoneUrl,
                                                                                                      null,
-                                                                                                     false);
+                                                                                                     false,
+                                                                                                     null,
+                                                                                                     null,
+                                                                                                     null);
 
         webDriver.get(baseUrl + "/logout.do");
         webDriver.get(zoneUrl + "/logout.do");
