@@ -77,6 +77,16 @@ public class UaaTokenEndpoint extends TokenEndpoint {
             logger.debug("Call to /oauth/token contains a query string. Aborting.");
             throw new HttpRequestMethodNotSupportedException("POST");
         }
+        /* Check verifier parameter.
+        *  Merge with code parameter to be available during validation.
+        */
+        if (parameters.containsKey("code_verifier")) {
+        	String verifier = parameters.get("code_verifier");
+        	if (!verifier.isEmpty()) {
+        		parameters.put("code", parameters.get("code")+" "+parameters.get("code_verifier"));
+        	}
+        }
+        // End of check
         return postAccessToken(principal, parameters);
     }
 

@@ -16,6 +16,7 @@ package org.cloudfoundry.identity.uaa.oauth;
 
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
@@ -33,11 +34,13 @@ import org.springframework.jdbc.core.support.SqlLobValue;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.common.exceptions.InvalidGrantException;
+import org.springframework.security.oauth2.common.exceptions.OAuth2Exception;
 import org.springframework.security.oauth2.common.util.RandomValueStringGenerator;
 import org.springframework.security.oauth2.common.util.SerializationUtils;
 import org.springframework.security.oauth2.provider.OAuth2Authentication;
 import org.springframework.security.oauth2.provider.OAuth2Request;
 import org.springframework.security.oauth2.provider.code.AuthorizationCodeServices;
+import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
 import java.io.Serializable;
@@ -104,6 +107,27 @@ public class UaaTokenStore implements AuthorizationCodeServices {
                 String userId = authentication.getUserAuthentication()==null ? null : ((UaaPrincipal)authentication.getUserAuthentication().getPrincipal()).getId();
                 String clientId = authentication.getOAuth2Request().getClientId();
                 SqlLobValue data = new SqlLobValue(serializeOauth2Authentication(authentication));
+                
+                /* Extend Authorization code with "code_challenge_method" and "code_challenge".
+                 * Pattern: authorizationCode code_challenge_method code_challenge
+                 * e.g.: 1ULmknmWhE S256 4E2E5C1F503CCE974951F481FC9C8B5FD7963836E60A0167596E6F05B20F97FC
+                 */
+                boolean isCodeChanged = false;
+                String originalCode = code;
+                
+                if (authentication.getOAuth2Request().getRequestParameters().containsKey("code_challenge") &&
+                		authentication.getOAuth2Request().getRequestParameters().containsKey("code_challenge_method")) {
+                	// Validated in Authorization endpoint controller -> not empty 
+                	StringBuilder stringBuilder = new StringBuilder();
+                	code = stringBuilder.append(code).append(" ")
+                				 .append(authentication.getOAuth2Request().getRequestParameters().get("code_challenge_method"))
+                				 .append(" ")
+                				 .append(authentication.getOAuth2Request().getRequestParameters().get("code_challenge"))
+                				 .toString();
+                	isCodeChanged = true;
+                }
+                // End of modification 
+                
                 int updated = template.update(
                     SQL_INSERT_STATEMENT,
                     new Object[] {code, userId, clientId, expiresAt, data, IdentityZoneHolder.get().getId()},
@@ -112,6 +136,12 @@ public class UaaTokenStore implements AuthorizationCodeServices {
                 if (updated==0) {
                     throw new DataIntegrityViolationException("[oauth_code] Failed to insert code. Result was 0");
                 }
+                
+                //Set the code back to the original value
+                if (isCodeChanged) {
+                	code=originalCode;
+                }
+                
                 return code;
             } catch (DataIntegrityViolationException exists) {
                 if (tries>=max_tries) throw exists;
@@ -120,12 +150,28 @@ public class UaaTokenStore implements AuthorizationCodeServices {
         return null;
     }
 
-
-
     @Override
     public OAuth2Authentication consumeAuthorizationCode(String code) throws InvalidGrantException {
         performExpirationClean();
         JdbcTemplate template = new JdbcTemplate(dataSource);
+        
+        /* PKCE code begin
+         * In case of PKCE flow then code need to be on the following format: "authorizationCode code_verifier"
+         * e.g: 1ULmknmWhE codeVerifierString
+         */
+        
+        if (code.contains(" ")) {
+        	// Cut code_verifier from input code and create S256 hash String (Uppercase).
+        	String codeVerifierHash = DigestUtils.sha256Hex(code.substring(code.indexOf(" ") + 1)).toUpperCase();
+        	
+        	// Transform code to stored pattern: authorizationCode code_challenge_method code_challenge
+        	// e.g.: 1ULmknmWhE S256 4E2E5C1F503CCE974951F481FC9C8B5FD7963836E60A0167596E6F05B20F97FC
+        	code = new StringBuilder()
+        			.append(code.substring(0, code.indexOf(" "))) // Cut original Authorization code from input
+        			.append(" S256 ")
+        			.append(codeVerifierHash).toString();
+        }
+        // PKCE code end
         try {
             TokenCode tokenCode = (TokenCode) template.queryForObject(SQL_SELECT_STATEMENT, rowMapper, code);
             if (tokenCode != null) {
