@@ -1,9 +1,10 @@
 package org.cloudfoundry.identity.uaa.oauth.jwt;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import static com.fasterxml.jackson.annotation.JsonInclude.*;
+import java.util.List;
 
 public class HeaderParameters {
     private static final String JWT = "JWT";
@@ -21,6 +22,26 @@ public class HeaderParameters {
     String kid;
     @JsonProperty
     String typ;
+    @JsonProperty
+    String cty;
+    @JsonProperty
+    @JsonInclude(Include.NON_NULL)
+    String jwk;
+    @JsonProperty
+    @JsonInclude(Include.NON_NULL)
+    String x5u;
+    @JsonProperty
+    @JsonInclude(Include.NON_NULL)
+    String x5c;
+    @JsonProperty
+    @JsonInclude(Include.NON_NULL)
+    String x5t;
+    @JsonProperty(value = "x5t#S256")
+    @JsonInclude(Include.NON_NULL)
+    String x5tS256;
+    @JsonProperty
+    @JsonInclude(Include.NON_NULL)
+    List<String> crit;
 
     @SuppressWarnings("unused")
     HeaderParameters() {
@@ -28,28 +49,15 @@ public class HeaderParameters {
     }
 
     HeaderParameters(String alg,
-                     String enc,
-                     String iv,
                      String kid,
-                     String jku,
-                     String typ) {
+                     String jku) {
         if (alg == null) {
             throw new IllegalArgumentException("alg is required");
         }
         this.alg = alg;
-        this.enc = enc;
-        this.iv = iv;
         this.jku = jku;
         this.kid = kid;
-        this.typ = typ;
-    }
-
-    HeaderParameters(String alg,
-                     String enc,
-                     String iv,
-                     String kid,
-                     String jku) {
-        this(alg, enc, iv, kid, jku, JWT);
+        this.typ = JWT;
     }
 
     public String getAlg() {
@@ -64,28 +72,8 @@ public class HeaderParameters {
         this.alg = alg;
     }
 
-    public String getEnc() {
-        return enc;
-    }
-
-    public void setEnc(String enc) {
-        this.enc = enc;
-    }
-
-    public void setIv(String iv) {
-        this.iv = iv;
-    }
-
-    public String getIv() {
-        return iv;
-    }
-
     public String getJku() {
         return jku;
-    }
-
-    public void setJku(String jku) {
-        this.jku = jku;
     }
 
     public void setKid(String kid) {
