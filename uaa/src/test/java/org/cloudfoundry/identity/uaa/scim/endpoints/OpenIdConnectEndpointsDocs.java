@@ -39,7 +39,7 @@ public class OpenIdConnectEndpointsDocs extends InjectedMockContextTest {
             fieldWithPath("claims_parameter_supported").description("Boolean value specifying whether the OP supports use of the claims parameter."),
             fieldWithPath("service_documentation").description("URL of a page containing human-readable information that developers might want or need to know when using the OpenID Provider."),
             fieldWithPath("ui_locales_supported").description("Languages and scripts supported for the user interface."),
-            fieldWithPath("code_challenge_methods_supported").description("JSON array containing a list of code challenge methods supported by this Authorize Endpoint.")
+            fieldWithPath("code_challenge_methods_supported").description("JSON array containing a list of PKCE code challenge methods supported by this authorization endpoint.")
             
         );
 
