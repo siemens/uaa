@@ -53,8 +53,10 @@ public class AuthorizeEndpointDocs extends InjectedMockContextTest {
     private final ParameterDescriptor promptParameter = parameterWithName(ID_TOKEN_HINT_PROMPT).description("specifies whether to prompt for user authentication. Only value `"+ID_TOKEN_HINT_PROMPT_NONE+"` is supported.").attributes(key("constraints").value("Optional"), key("type").value(STRING));
     private final ParameterDescriptor responseTypeParameter = parameterWithName(RESPONSE_TYPE).attributes(key("constraints").value("Required"), key("type").value(STRING));
     private final ParameterDescriptor loginHintParameter = parameterWithName("login_hint").optional(null).type(STRING).description("<small><mark>UAA 4.19.0</mark></small> Indicates the identity provider to be used. The passed string has to be a URL-Encoded JSON Object, containing the field `origin` with value as `origin_key` of an identity provider.");
+    // Added parameters for PKCE
     private final ParameterDescriptor codeChallenge = parameterWithName("code_challenge").description("Code challenge parameter documentation").attributes(key("constraints").value("Optional"), key("type").value(STRING));
     private final ParameterDescriptor codeChallengeMethods = parameterWithName("code_challenge_method").description("Code challenge methods parameter documentation").attributes(key("constraints").value("Optional"), key("type").value(STRING));
+    // End
     
     private UaaAuthentication principal;
 

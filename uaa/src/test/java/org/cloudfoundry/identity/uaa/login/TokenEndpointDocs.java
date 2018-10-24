@@ -106,7 +106,9 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
     private final ParameterDescriptor opaqueFormatParameter = parameterWithName(REQUEST_TOKEN_FORMAT).optional(null).type(STRING).description("<small><mark>UAA 3.3.0</mark></small> Can be set to `"+ OPAQUE.getStringValue() +"` to retrieve an opaque and revocable token.");
     private final ParameterDescriptor scopeParameter = parameterWithName(SCOPE).optional(null).type(STRING).description("The list of scopes requested for the token. Use when you wish to reduce the number of scopes the token will have.");
     private final ParameterDescriptor loginHintParameter = parameterWithName("login_hint").optional(null).type(STRING).description("<small><mark>UAA 4.19.0</mark></small> Indicates the identity provider to be used. The passed string has to be a URL-Encoded JSON Object, containing the field `origin` with value as `origin_key` of an identity provider. Note that this identity provider must support the grant type `password`.");
+    // Added new parameter for PKCE
     private final ParameterDescriptor codeVerifier = parameterWithName("code_verifier").description("Code verifier parameter documentation").attributes(key("constraints").value("Optional"), key("type").value(STRING));
+    // End
     
     private final FieldDescriptor accessTokenFieldDescriptor = fieldWithPath("access_token").description("An OAuth2 [access token](https://tools.ietf.org/html/rfc6749#section-1.4). When `token_format=opaque` is requested this value will be a random string that can only be validated using the UAA's `/check_token` or `/introspect` endpoints. When `token_format=jwt` is requested, this token will be a [JSON Web Token](https://tools.ietf.org/html/rfc7519) suitable for offline validation by OAuth2 Resource Servers.");
     private final FieldDescriptor idTokenFieldDescriptor = fieldWithPath("id_token").description("An OpenID Connect [ID token](http://openid.net/specs/openid-connect-core-1_0.html#IDToken). This portion of the token response is only returned when clients are configured with the scope `openid`, the `response_type` includes `id_token`, and the user has granted approval to the client for the `openid` scope.");
@@ -165,7 +167,11 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             .param(RESPONSE_TYPE, "code")
             .param(CLIENT_ID, "login")
             .param(REDIRECT_URI, redirect)
-            .param(STATE, new RandomValueStringGenerator().generate());
+            .param(STATE, new RandomValueStringGenerator().generate())
+            // PKCE additional parameters
+            .param("code_challenge_method", "S256")
+            .param("code_challenge", "4E2E5C1F503CCE974951F481FC9C8B5FD7963836E60A0167596E6F05B20F97FC");
+        	// end
 
         MockHttpServletResponse authCodeResponse = getMockMvc().perform(getAuthCode)
             .andExpect(status().isFound())
@@ -187,7 +193,9 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             .param(GRANT_TYPE, GRANT_TYPE_AUTHORIZATION_CODE)
             .param("code", code)
             .param(REQUEST_TOKEN_FORMAT, OPAQUE.getStringValue())
-            .param(REDIRECT_URI, redirect);
+            .param(REDIRECT_URI, redirect)
+            // PKCE parameter
+            .param("code_verifier", "testcode");
 
         Snippet requestParameters = requestParameters(
             clientIdParameter,
@@ -195,7 +203,9 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             parameterWithName("code").description(codeDescription).attributes(SnippetUtils.constraints.value("Required"), SnippetUtils.type.value(STRING)),
             grantTypeParameter.description("the type of authentication being used to obtain the token, in this case `authorization_code`"),
             clientSecretParameter,
-            opaqueFormatParameter
+            opaqueFormatParameter,
+            // PKCE parameter
+            codeVerifier
         );
 
         Snippet responseFields = responseFields(
