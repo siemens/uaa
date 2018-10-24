@@ -112,7 +112,6 @@ public class UaaTokenStore implements AuthorizationCodeServices {
                  * Pattern: authorizationCode code_challenge_method code_challenge
                  * e.g.: 1ULmknmWhE S256 4E2E5C1F503CCE974951F481FC9C8B5FD7963836E60A0167596E6F05B20F97FC
                  */
-                boolean isCodeChanged = false;
                 String originalCode = code;
                 
                 if (authentication.getOAuth2Request().getRequestParameters().containsKey("code_challenge") &&
@@ -124,7 +123,6 @@ public class UaaTokenStore implements AuthorizationCodeServices {
                 				 .append(" ")
                 				 .append(authentication.getOAuth2Request().getRequestParameters().get("code_challenge"))
                 				 .toString();
-                	isCodeChanged = true;
                 }
                 // End of modification 
                 
@@ -137,12 +135,7 @@ public class UaaTokenStore implements AuthorizationCodeServices {
                     throw new DataIntegrityViolationException("[oauth_code] Failed to insert code. Result was 0");
                 }
                 
-                //Set the code back to the original value
-                if (isCodeChanged) {
-                	code=originalCode;
-                }
-                
-                return code;
+                return originalCode;
             } catch (DataIntegrityViolationException exists) {
                 if (tries>=max_tries) throw exists;
             }
@@ -159,11 +152,11 @@ public class UaaTokenStore implements AuthorizationCodeServices {
          * In case of PKCE flow then code need to be on the following format: "authorizationCode code_verifier"
          * e.g: 1ULmknmWhE codeVerifierString
          */
-        
+        String originalCode = code;
         if (code.contains(" ")) {
         	// Cut code_verifier from input code and create S256 hash String (Uppercase).
         	String codeVerifierHash = DigestUtils.sha256Hex(code.substring(code.indexOf(" ") + 1)).toUpperCase();
-        	
+        	originalCode = code.substring(0, code.indexOf(" ") - 1);
         	// Transform code to stored pattern: authorizationCode code_challenge_method code_challenge
         	// e.g.: 1ULmknmWhE S256 4E2E5C1F503CCE974951F481FC9C8B5FD7963836E60A0167596E6F05B20F97FC
         	code = new StringBuilder()
@@ -178,7 +171,7 @@ public class UaaTokenStore implements AuthorizationCodeServices {
                 try {
                     if (tokenCode.isExpired()) {
                         logger.debug("[oauth_code] Found code, but it expired:"+tokenCode);
-                        throw new InvalidGrantException("Authorization code expired: " + code);
+                        throw new InvalidGrantException("Authorization code expired: " + originalCode);
                     } else if (tokenCode.getExpiresAt() == 0) {
                         return SerializationUtils.deserialize(tokenCode.getAuthentication());
                     } else {
@@ -190,7 +183,7 @@ public class UaaTokenStore implements AuthorizationCodeServices {
             }
         }catch (EmptyResultDataAccessException x) {
         }
-        throw new InvalidGrantException("Invalid authorization code: " + code);
+        throw new InvalidGrantException("Invalid authorization code: " + originalCode);
     }
 
     protected byte[] serializeOauth2Authentication(OAuth2Authentication auth2Authentication) {

@@ -179,7 +179,7 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
     			throw new OAuth2Exception("code_challenge parameter must not be empty.");
     		}
         	if (!parameters.containsKey("code_challenge_method") || !StringUtils.hasText(parameters.get("code_challenge_method"))) {
-        		throw new OAuth2Exception("code challenge method must be set if code_challenge parameter provided");
+        		throw new OAuth2Exception("code challenge method must be set to S256 if code_challenge parameter provided");
         	}else {
             	if (!parameters.get("code_challenge_method").equals("S256")) {
             		throw new OAuth2Exception("Unsupported code challenge method: "

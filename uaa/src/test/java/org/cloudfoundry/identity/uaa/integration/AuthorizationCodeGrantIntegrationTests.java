@@ -53,13 +53,13 @@ public class AuthorizationCodeGrantIntegrationTests {
         testSuccessfulAuthorizationCodeFlow_Internal();
         testSuccessfulAuthorizationCodeFlow_Internal();
     }
-
+    
     @Test
     public void testSuccessfulAuthorizationCodeFlowWithPKCE() throws Exception {
         testSuccessfulAuthorizationCodeFlowWithPKCE_Internal();
         testSuccessfulAuthorizationCodeFlowWithPKCE_Internal();
     }
-
+    
     @Test
     public void testZoneDoesNotExist() {
         ServerRunning.UriBuilder builder = serverRunning.buildUri(serverRunning.getAuthorizationUri().replace("localhost", "testzonedoesnotexist.localhost"))
@@ -103,7 +103,7 @@ public class AuthorizationCodeGrantIntegrationTests {
                 );
         assertEquals(HttpStatus.NOT_FOUND, result.getStatusCode());
     }
-    
+
     public void testSuccessfulAuthorizationCodeFlow_Internal() throws Exception {
         AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
 
