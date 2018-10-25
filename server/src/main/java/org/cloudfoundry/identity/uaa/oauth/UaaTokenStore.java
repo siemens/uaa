@@ -165,13 +165,13 @@ public class UaaTokenStore implements AuthorizationCodeServices {
     
     protected boolean isValidCodeVerifier(TokenCode tokenCode, String codeVerifier) {
     	if (codeVerifier.isEmpty()) {
-    		// code verifier is empty -> Authorization Code Grant without PKCE
+    		// Code verifier is empty -> Authorization Code Grant without PKCE
     		return true;
     	}
-    	// has code verifier => need to check stored authorization code has code challenge
+    	// Has code verifier => need to check stored authorization code has code challenge
     	OAuth2Authentication storedAuth = deserializeOauth2Authentication(tokenCode.getAuthentication());
     	if (storedAuth.getOAuth2Request().getRequestParameters().containsKey("code_challenge")) {
-    		// stored authorization code has code challenge => need to check code challenge method 
+    		// Stored authorization code has code challenge => need to check code challenge method 
     		String codeChallenge = storedAuth.getOAuth2Request().getRequestParameters().get("code_challenge");
     		String codeVerifierHash = "";
     		if (storedAuth.getOAuth2Request().getRequestParameters().containsKey("code_challenge_method")) {
@@ -180,18 +180,13 @@ public class UaaTokenStore implements AuthorizationCodeServices {
     			switch (codeChallengeMethod) {
 				case "S256":
 					try {
-					byte[] bytes = codeVerifier.getBytes("US-ASCII");
-					MessageDigest md = MessageDigest.getInstance("SHA-256");
-					md.update(bytes, 0, bytes.length);
-					byte[] digest = md.digest();
-					codeVerifierHash = Base64.encodeBase64URLSafeString(digest);
-					//codeVerifierHash = DigestUtils.sha256Hex(codeVerifier).toUpperCase();
+						byte[] bytes = codeVerifier.getBytes("US-ASCII");
+						MessageDigest md = MessageDigest.getInstance("SHA-256");
+						md.update(bytes, 0, bytes.length);
+						byte[] digest = md.digest();
+						codeVerifierHash = Base64.encodeBase64URLSafeString(digest);
 					} catch (UnsupportedEncodingException e) {
-						// TODO: handle exception
-						e.printStackTrace();
 					} catch (NoSuchAlgorithmException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
 					}
 					break;
 				case "plain":
@@ -211,7 +206,7 @@ public class UaaTokenStore implements AuthorizationCodeServices {
     			return true;
     		}
     	}
-    	// has code verifier in token request but Authorization code has no stored code challenge	
+    	// Has code verifier in token request but Authorization code has no stored code challenge	
     	return false;
     }
 
