@@ -168,6 +168,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 			.param("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
             .param("code_challenge_method", "S256");
 
+
         MockHttpServletResponse authCodeResponse = getMockMvc().perform(getAuthCode)
             .andExpect(status().isFound())
             .andReturn()
