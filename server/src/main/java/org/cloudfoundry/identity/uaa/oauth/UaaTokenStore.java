@@ -16,7 +16,7 @@ package org.cloudfoundry.identity.uaa.oauth;
 
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
@@ -34,16 +34,17 @@ import org.springframework.jdbc.core.support.SqlLobValue;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.common.exceptions.InvalidGrantException;
-import org.springframework.security.oauth2.common.exceptions.OAuth2Exception;
 import org.springframework.security.oauth2.common.util.RandomValueStringGenerator;
 import org.springframework.security.oauth2.common.util.SerializationUtils;
 import org.springframework.security.oauth2.provider.OAuth2Authentication;
 import org.springframework.security.oauth2.provider.OAuth2Request;
 import org.springframework.security.oauth2.provider.code.AuthorizationCodeServices;
-import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -154,9 +155,17 @@ public class UaaTokenStore implements AuthorizationCodeServices {
          */
         String originalCode = code;
         if (code.contains(" ")) {
-        	// Cut code_verifier from input code and create S256 hash String (Uppercase).
-        	String codeVerifierHash = DigestUtils.sha256Hex(code.substring(code.indexOf(" ") + 1)).toUpperCase();
         	originalCode = code.substring(0, code.indexOf(" ") - 1);
+        	String codeVerifierHash = "";
+        	try {
+        		byte[] bytes = code.substring(code.indexOf(" ") + 1).getBytes("US-ASCII");
+        		MessageDigest md = MessageDigest.getInstance("SHA-256");
+        		md.update(bytes, 0, bytes.length);
+        		byte[] digest = md.digest();
+        		codeVerifierHash = Base64.encodeBase64URLSafeString(digest);
+        	} catch (UnsupportedEncodingException e) {
+			} catch (NoSuchAlgorithmException e) {
+			}
         	// Transform code to stored pattern: authorizationCode code_challenge_method code_challenge
         	// e.g.: 1ULmknmWhE S256 4E2E5C1F503CCE974951F481FC9C8B5FD7963836E60A0167596E6F05B20F97FC
         	code = new StringBuilder()
