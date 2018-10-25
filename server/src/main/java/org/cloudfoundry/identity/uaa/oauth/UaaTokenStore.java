@@ -16,7 +16,8 @@ package org.cloudfoundry.identity.uaa.oauth;
 
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.commons.codec.digest.DigestUtils;
+
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
@@ -34,16 +35,17 @@ import org.springframework.jdbc.core.support.SqlLobValue;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.common.exceptions.InvalidGrantException;
-import org.springframework.security.oauth2.common.exceptions.OAuth2Exception;
 import org.springframework.security.oauth2.common.util.RandomValueStringGenerator;
 import org.springframework.security.oauth2.common.util.SerializationUtils;
 import org.springframework.security.oauth2.provider.OAuth2Authentication;
 import org.springframework.security.oauth2.provider.OAuth2Request;
 import org.springframework.security.oauth2.provider.code.AuthorizationCodeServices;
-import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -107,25 +109,6 @@ public class UaaTokenStore implements AuthorizationCodeServices {
                 String userId = authentication.getUserAuthentication()==null ? null : ((UaaPrincipal)authentication.getUserAuthentication().getPrincipal()).getId();
                 String clientId = authentication.getOAuth2Request().getClientId();
                 SqlLobValue data = new SqlLobValue(serializeOauth2Authentication(authentication));
-                
-                /* Extend Authorization code with "code_challenge_method" and "code_challenge".
-                 * Pattern: authorizationCode code_challenge_method code_challenge
-                 * e.g.: 1ULmknmWhE S256 4E2E5C1F503CCE974951F481FC9C8B5FD7963836E60A0167596E6F05B20F97FC
-                 */
-                String originalCode = code;
-                
-                if (authentication.getOAuth2Request().getRequestParameters().containsKey("code_challenge") &&
-                		authentication.getOAuth2Request().getRequestParameters().containsKey("code_challenge_method")) {
-                	// Validated in Authorization endpoint controller -> not empty 
-                	StringBuilder stringBuilder = new StringBuilder();
-                	code = stringBuilder.append(code).append(" ")
-                				 .append(authentication.getOAuth2Request().getRequestParameters().get("code_challenge_method"))
-                				 .append(" ")
-                				 .append(authentication.getOAuth2Request().getRequestParameters().get("code_challenge"))
-                				 .toString();
-                }
-                // End of modification 
-                
                 int updated = template.update(
                     SQL_INSERT_STATEMENT,
                     new Object[] {code, userId, clientId, expiresAt, data, IdentityZoneHolder.get().getId()},
@@ -135,7 +118,7 @@ public class UaaTokenStore implements AuthorizationCodeServices {
                     throw new DataIntegrityViolationException("[oauth_code] Failed to insert code. Result was 0");
                 }
                 
-                return originalCode;
+                return code;
             } catch (DataIntegrityViolationException exists) {
                 if (tries>=max_tries) throw exists;
             }
@@ -152,26 +135,20 @@ public class UaaTokenStore implements AuthorizationCodeServices {
          * In case of PKCE flow then code need to be on the following format: "authorizationCode code_verifier"
          * e.g: 1ULmknmWhE codeVerifierString
          */
-        String originalCode = code;
+        String codeVerifier = "";
         if (code.contains(" ")) {
-        	// Cut code_verifier from input code and create S256 hash String (Uppercase).
-        	String codeVerifierHash = DigestUtils.sha256Hex(code.substring(code.indexOf(" ") + 1)).toUpperCase();
-        	originalCode = code.substring(0, code.indexOf(" ") - 1);
-        	// Transform code to stored pattern: authorizationCode code_challenge_method code_challenge
-        	// e.g.: 1ULmknmWhE S256 4E2E5C1F503CCE974951F481FC9C8B5FD7963836E60A0167596E6F05B20F97FC
-        	code = new StringBuilder()
-        			.append(code.substring(0, code.indexOf(" "))) // Cut original Authorization code from input
-        			.append(" S256 ")
-        			.append(codeVerifierHash).toString();
+        	codeVerifier = code.substring(code.indexOf(" ") + 1);
+        	code = code.substring(0, code.indexOf(" "));
         }
         // PKCE code end
         try {
             TokenCode tokenCode = (TokenCode) template.queryForObject(SQL_SELECT_STATEMENT, rowMapper, code);
-            if (tokenCode != null) {
-                try {
+            // validate code verifier
+            if (tokenCode != null && isValidCodeVerifier(tokenCode, codeVerifier)) {
+            	try {
                     if (tokenCode.isExpired()) {
                         logger.debug("[oauth_code] Found code, but it expired:"+tokenCode);
-                        throw new InvalidGrantException("Authorization code expired: " + originalCode);
+                        throw new InvalidGrantException("Authorization code expired: " + code);
                     } else if (tokenCode.getExpiresAt() == 0) {
                         return SerializationUtils.deserialize(tokenCode.getAuthentication());
                     } else {
@@ -183,7 +160,59 @@ public class UaaTokenStore implements AuthorizationCodeServices {
             }
         }catch (EmptyResultDataAccessException x) {
         }
-        throw new InvalidGrantException("Invalid authorization code: " + originalCode);
+        throw new InvalidGrantException("Invalid authorization code: " + code);
+    }
+    
+    protected boolean isValidCodeVerifier(TokenCode tokenCode, String codeVerifier) {
+    	if (codeVerifier.isEmpty()) {
+    		// code verifier is empty -> Authorization Code Grant without PKCE
+    		return true;
+    	}
+    	// has code verifier => need to check stored authorization code has code challenge
+    	OAuth2Authentication storedAuth = deserializeOauth2Authentication(tokenCode.getAuthentication());
+    	if (storedAuth.getOAuth2Request().getRequestParameters().containsKey("code_challenge")) {
+    		// stored authorization code has code challenge => need to check code challenge method 
+    		String codeChallenge = storedAuth.getOAuth2Request().getRequestParameters().get("code_challenge");
+    		String codeVerifierHash = "";
+    		if (storedAuth.getOAuth2Request().getRequestParameters().containsKey("code_challenge_method")) {
+    			// Has code challenge method, create code verifier hash 
+    			String codeChallengeMethod = storedAuth.getOAuth2Request().getRequestParameters().get("code_challenge_method");
+    			switch (codeChallengeMethod) {
+				case "S256":
+					try {
+					byte[] bytes = codeVerifier.getBytes("US-ASCII");
+					MessageDigest md = MessageDigest.getInstance("SHA-256");
+					md.update(bytes, 0, bytes.length);
+					byte[] digest = md.digest();
+					codeVerifierHash = Base64.encodeBase64URLSafeString(digest);
+					//codeVerifierHash = DigestUtils.sha256Hex(codeVerifier).toUpperCase();
+					} catch (UnsupportedEncodingException e) {
+						// TODO: handle exception
+						e.printStackTrace();
+					} catch (NoSuchAlgorithmException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					break;
+				case "plain":
+					codeVerifierHash = codeChallenge;
+					break;	
+				}
+    			if (codeVerifierHash.isEmpty()) {
+    				// Not supported code challenge method
+    				return false;
+    			}
+    		}else {
+    			// There is no stored code challenge method for code challenge => code challenge method is default: plain
+    			codeVerifierHash = codeChallenge;
+    		}
+    		// Validate code verifier hash with code challenge
+    		if(codeVerifierHash.contentEquals(codeChallenge)) {
+    			return true;
+    		}
+    	}
+    	// has code verifier in token request but Authorization code has no stored code challenge	
+    	return false;
     }
 
     protected byte[] serializeOauth2Authentication(OAuth2Authentication auth2Authentication) {

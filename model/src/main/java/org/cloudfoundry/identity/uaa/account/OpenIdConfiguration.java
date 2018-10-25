@@ -54,7 +54,7 @@ public class OpenIdConfiguration {
     @JsonProperty("ui_locales_supported")
     private String[] uiLocalesSupported = new String[]{"en-US"};
     @JsonProperty("code_challenge_methods_supported")
-    private String[] codeChallengeMethodsSupported = new String[]{"S256"};
+    private String[] codeChallengeMethodsSupported = new String[]{"S256, plain"};
     
     //For json serialization
     public OpenIdConfiguration() {}
