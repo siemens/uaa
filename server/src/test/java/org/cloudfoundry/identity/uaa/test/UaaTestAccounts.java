@@ -287,13 +287,13 @@ public class UaaTestAccounts implements TestAccounts {
      * PKCE test data
      */
     public String getCodeChallenge() {
-    	return "4E2E5C1F503CCE974951F481FC9C8B5FD7963836E60A0167596E6F05B20F97FC";
+    	return "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
     }
     public String getCodeChallengeMethod() {
     	return "S256";
     }
     public String getCodeVerifier() {
-    	return "testcode";
+    	return "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
     }
     // End of PKCE test data
 }
