@@ -53,8 +53,8 @@ public class AuthorizeEndpointDocs extends InjectedMockContextTest {
     private final ParameterDescriptor promptParameter = parameterWithName(ID_TOKEN_HINT_PROMPT).description("specifies whether to prompt for user authentication. Only value `"+ID_TOKEN_HINT_PROMPT_NONE+"` is supported.").attributes(key("constraints").value("Optional"), key("type").value(STRING));
     private final ParameterDescriptor responseTypeParameter = parameterWithName(RESPONSE_TYPE).attributes(key("constraints").value("Required"), key("type").value(STRING));
     private final ParameterDescriptor loginHintParameter = parameterWithName("login_hint").optional(null).type(STRING).description("<small><mark>UAA 4.22.0</mark></small> Indicates the identity provider to be used. The passed string has to be a URL-Encoded JSON Object, containing the field `origin` with value as `origin_key` of an identity provider.");
-    private final ParameterDescriptor codeChallenge = parameterWithName("code_challenge").description("<small><mark>UAA 4.22.0</mark></small>[PKCE](https://tools.ietf.org/html/rfc7636) Code Challenge. When `code_challenge` is present also a `code_challenge_method` must be provided. A matching `code_verifier` parameter must be provided in the subsequent request to get an `access_token` from `/oauth/token`").attributes(key("constraints").value("Optional"), key("type").value(STRING));
-    private final ParameterDescriptor codeChallengeMethod = parameterWithName("code_challenge_method").description("<small><mark>UAA 4.22.0</mark></small>[PKCE](https://tools.ietf.org/html/rfc7636) Code Challenge Method. Only `S256` method is supported. `S256` method creates a BASE64 URL encoded SHA256 hash of the `code_verifier`.").attributes(key("constraints").value("Optional"), key("type").value(STRING));
+    private final ParameterDescriptor codeChallenge = parameterWithName("code_challenge").description("<small><mark>UAA 4.22.0</mark></small> [PKCE](https://tools.ietf.org/html/rfc7636) Code Challenge. When `code_challenge` is present also a `code_challenge_method` must be provided. A matching `code_verifier` parameter must be provided in the subsequent request to get an `access_token` from `/oauth/token`").attributes(key("constraints").value("Optional"), key("type").value(STRING));
+    private final ParameterDescriptor codeChallengeMethod = parameterWithName("code_challenge_method").description("<small><mark>UAA 4.22.0</mark></small> [PKCE](https://tools.ietf.org/html/rfc7636) Code Challenge Method. Only `S256` method is supported. `S256` method creates a BASE64 URL encoded SHA256 hash of the `code_verifier`.").attributes(key("constraints").value("Optional"), key("type").value(STRING));
     
     private UaaAuthentication principal;
 
@@ -125,7 +125,7 @@ public class AuthorizeEndpointDocs extends InjectedMockContextTest {
             responseTypeParameter.description("Space-delimited list of response types. Here, `code` for requesting an authorization code for an access token, as per OAuth spec"),
             clientIdParameter,
             redirectParameter,
-            parameterWithName(STATE).description("any random string to be returned in the Location header as a query parameter, used to achieve per-request customization").attributes(key("constraints").value("Required"), key("type").value(STRING))
+            parameterWithName(STATE).description("any random string to be returned in the Location header as a query parameter, used to achieve per-request customization").attributes(key("constraints").value("Required"), key("type").value(STRING)),
 			codeChallenge,
 			codeChallengeMethod
         );
