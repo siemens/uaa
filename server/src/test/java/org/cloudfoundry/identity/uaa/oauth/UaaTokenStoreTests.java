@@ -20,6 +20,7 @@ import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.oauth.UaaTokenStore;
 import org.cloudfoundry.identity.uaa.test.JdbcTestBase;
+import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
 import org.cloudfoundry.identity.uaa.util.UaaStringUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.junit.Before;
@@ -33,6 +34,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.common.exceptions.InvalidGrantException;
 import org.springframework.security.oauth2.common.util.OAuth2Utils;
 import org.springframework.security.oauth2.provider.OAuth2Authentication;
+import org.springframework.security.oauth2.provider.OAuth2Request;
 import org.springframework.security.oauth2.provider.TokenRequest;
 import org.springframework.security.oauth2.provider.client.BaseClientDetails;
 import org.springframework.security.oauth2.provider.code.JdbcAuthorizationCodeServices;
@@ -50,6 +52,7 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Timestamp;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -63,6 +66,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -135,7 +139,88 @@ public class UaaTokenStoreTests extends JdbcTestBase {
         assertEquals(3, userAuthentication.getExternalGroups().size());
         assertThat(userAuthentication.getExternalGroups(), containsInAnyOrder("group1","group2","group3"));
     }
-
+    
+    @Test
+    public void test_ConsumeCodeWithPkceMethodS256() throws  Exception {
+    	Map<String, String> parameters = new HashMap<String, String>();
+    	parameters.put("code_challenge", UaaTestAccounts.CODE_CHALLENGE);
+    	parameters.put("code_challenge_method", UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
+    	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
+        OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
+    	String code = store.createAuthorizationCode(oAuth2Authentication);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(1));
+        OAuth2Authentication authentication = store.consumeAuthorizationCode(code + " " + UaaTestAccounts.CODE_VERIFIER);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(0));
+        assertNotNull(authentication);
+    }
+    
+    @Test
+    public void test_ConsumeCodeWithPkceMethodPlain() throws  Exception {
+    	Map<String, String> parameters = new HashMap<String, String>();
+    	parameters.put("code_challenge", "Test");
+    	parameters.put("code_challenge_method", "plain");
+    	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
+        OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
+    	String code = store.createAuthorizationCode(oAuth2Authentication);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(1));
+        OAuth2Authentication authentication = store.consumeAuthorizationCode(code + " " + "Test");
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(0));
+        assertNotNull(authentication);
+    }
+    
+    @Test
+    public void test_ConsumeCodeWithPkceMethodEmpty() throws  Exception {
+    	Map<String, String> parameters = new HashMap<String, String>();
+    	parameters.put("code_challenge", "Test");
+    	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
+        OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
+    	String code = store.createAuthorizationCode(oAuth2Authentication);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(1));
+        OAuth2Authentication authentication = store.consumeAuthorizationCode(code + " " + "Test");
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(0));
+        assertNotNull(authentication);
+    }
+    
+    @Test(expected = InvalidGrantException.class)
+    public void test_ConsumeCodeWithPkceMethodS256WrongCodeVerifier() throws  Exception {
+    	Map<String, String> parameters = new HashMap<String, String>();
+    	parameters.put("code_challenge", "Test");
+    	parameters.put("code_challenge_method", UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
+    	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
+        OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
+    	String code = store.createAuthorizationCode(oAuth2Authentication);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(1));
+        OAuth2Authentication authentication = store.consumeAuthorizationCode(code + " " + UaaTestAccounts.CODE_VERIFIER);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(0));
+        assertNotNull(authentication);
+    }
+    
+    @Test(expected = InvalidGrantException.class)
+    public void test_ConsumeCodeWithCodeVerifierWithoutStoredCodeChallenge() throws  Exception {
+    	Map<String, String> parameters = new HashMap<String, String>();
+    	parameters.put("code_challenge_method", UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
+    	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
+        OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
+    	String code = store.createAuthorizationCode(oAuth2Authentication);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(1));
+        OAuth2Authentication authentication = store.consumeAuthorizationCode(code + " " + UaaTestAccounts.CODE_VERIFIER);
+        assertNull(authentication);
+    }
+    
+    @Test(expected = InvalidGrantException.class)
+    public void test_ConsumeCodeWithoutCodeVerifierWithCodeChallenge() throws  Exception {
+    	Map<String, String> parameters = new HashMap<String, String>();
+    	parameters.put("code_challenge", UaaTestAccounts.CODE_CHALLENGE);
+    	parameters.put("code_challenge_method", UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
+    	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
+        OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
+    	String code = store.createAuthorizationCode(oAuth2Authentication);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(1));
+        OAuth2Authentication authentication = store.consumeAuthorizationCode(code);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(0));
+        assertNotNull(authentication);
+    } 
+    
     @Test
     public void test_ConsumeClientCredentials_From_OldStore() throws  Exception {
         String code = legacyCodeServices.createAuthorizationCode(clientAuthentication);

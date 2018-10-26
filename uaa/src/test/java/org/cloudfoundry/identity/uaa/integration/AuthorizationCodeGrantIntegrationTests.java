@@ -126,9 +126,9 @@ public class AuthorizationCodeGrantIntegrationTests {
                                                                                      resource.getClientSecret(),
                                                                                      testAccounts.getUserName(),
                                                                                      testAccounts.getPassword(),
-                                                                                     testAccounts.getCodeChallenge(),
-                                                                                     testAccounts.getCodeChallengeMethod(),
-                                                                                     testAccounts.getCodeVerifier());
+                                                                                     UaaTestAccounts.CODE_CHALLENGE,
+                                                                                     UaaTestAccounts.CODE_CHALLENGE_METHOD_S256,
+                                                                                     UaaTestAccounts.CODE_VERIFIER);
         Jwt token = JwtHelper.decode(body.get("access_token"));
         assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"aud\""));
         assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"user_id\""));

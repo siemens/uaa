@@ -164,49 +164,54 @@ public class UaaTokenStore implements AuthorizationCodeServices {
     }
     
     protected boolean isValidCodeVerifier(TokenCode tokenCode, String codeVerifier) {
-    	if (codeVerifier.isEmpty()) {
-    		// Code verifier is empty -> Authorization Code Grant without PKCE
+    	// Support legacy authorization code storage
+    	// TODO: Is it deprecated?
+    	if (tokenCode.getExpiresAt() == 0) {
     		return true;
     	}
-    	// Has code verifier => need to check stored authorization code has code challenge
-    	OAuth2Authentication storedAuth = deserializeOauth2Authentication(tokenCode.getAuthentication());
-    	if (storedAuth.getOAuth2Request().getRequestParameters().containsKey("code_challenge")) {
-    		// Stored authorization code has code challenge => need to check code challenge method 
-    		String codeChallenge = storedAuth.getOAuth2Request().getRequestParameters().get("code_challenge");
-    		String codeVerifierHash = "";
-    		if (storedAuth.getOAuth2Request().getRequestParameters().containsKey("code_challenge_method")) {
-    			// Has code challenge method, create code verifier hash 
-    			String codeChallengeMethod = storedAuth.getOAuth2Request().getRequestParameters().get("code_challenge_method");
-    			switch (codeChallengeMethod) {
-				case "S256":
-					try {
-						byte[] bytes = codeVerifier.getBytes("US-ASCII");
-						MessageDigest md = MessageDigest.getInstance("SHA-256");
-						md.update(bytes, 0, bytes.length);
-						byte[] digest = md.digest();
-						codeVerifierHash = Base64.encodeBase64URLSafeString(digest);
-					} catch (UnsupportedEncodingException e) {
-					} catch (NoSuchAlgorithmException e) {
-					}
-					break;
-				case "plain":
-					codeVerifierHash = codeChallenge;
-					break;	
-				}
-    			if (codeVerifierHash.isEmpty()) {
-    				// Not supported code challenge method
-    				return false;
-    			}
+    	// deserialize Authentication from data source
+    	OAuth2Authentication storedAuthentication = deserializeOauth2Authentication(tokenCode.getAuthentication());
+    	if(!storedAuthentication.getOAuth2Request().getRequestParameters().containsKey("code_challenge") && codeVerifier.isEmpty()) {
+    		// There is no stored code challenge for authorization code and there is no code verifier in token request
+    		return true;
+    	}
+    	if(storedAuthentication.getOAuth2Request().getRequestParameters().containsKey("code_challenge") && !codeVerifier.isEmpty()) {
+    		// Has stored code challenge for authorization code and has code verifier in token request
+    		String codeChallenge = storedAuthentication.getOAuth2Request().getRequestParameters().get("code_challenge");
+    		if (storedAuthentication.getOAuth2Request().getRequestParameters().containsKey("code_challenge_method")) {
+    			// Has code challenge method forward to verifier
+    			String codeChallengeMethod = storedAuthentication.getOAuth2Request().getRequestParameters().get("code_challenge_method");
+    			return isCodeVerifierVaild(codeVerifier, codeChallenge, codeChallengeMethod);
     		}else {
     			// There is no stored code challenge method for code challenge => code challenge method is default: plain
-    			codeVerifierHash = codeChallenge;
-    		}
-    		// Validate code verifier hash with code challenge
-    		if(codeVerifierHash.contentEquals(codeChallenge)) {
-    			return true;
+    			return isCodeVerifierVaild(codeVerifier, codeChallenge, "plain");
     		}
     	}
-    	// Has code verifier in token request but Authorization code has no stored code challenge	
+    	return false;
+    }
+    
+    private boolean isCodeVerifierVaild(String codeVerifier, String codeChallenge, String codeChallengeMethod) {
+    	String codeVerifierHash = "";
+    	switch (codeChallengeMethod) {
+		case "S256":
+			try {
+				byte[] bytes = codeVerifier.getBytes("US-ASCII");
+				MessageDigest md = MessageDigest.getInstance("SHA-256");
+				md.update(bytes, 0, bytes.length);
+				byte[] digest = md.digest();
+				codeVerifierHash = Base64.encodeBase64URLSafeString(digest);
+			} catch (UnsupportedEncodingException e) {
+			} catch (NoSuchAlgorithmException e) {
+			}
+			break;
+		case "plain":
+			codeVerifierHash = codeChallenge;
+			break;	
+		}
+    	// Compare code verifier with code challenge
+    	if(codeVerifierHash.contentEquals(codeChallenge)) {
+    		return true;
+    	}
     	return false;
     }
 
