@@ -77,8 +77,8 @@ public class UaaTokenEndpoint extends TokenEndpoint {
             logger.debug("Call to /oauth/token contains a query string. Aborting.");
             throw new HttpRequestMethodNotSupportedException("POST");
         }
-        /* Check verifier parameter.
-        *  Merge with code parameter to be available during validation.
+        /* In case of PKCE (verifier parameter present), the code is modified to be build up as "code" = "code" + " " + "code_verifier",
+         * to make the code_verifier available in: UaaTokenStore
         */
         if (parameters.containsKey("code_verifier")) {
         	String verifier = parameters.get("code_verifier");

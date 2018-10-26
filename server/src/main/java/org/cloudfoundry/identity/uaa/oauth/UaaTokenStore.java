@@ -131,20 +131,20 @@ public class UaaTokenStore implements AuthorizationCodeServices {
         performExpirationClean();
         JdbcTemplate template = new JdbcTemplate(dataSource);
         
-        /* PKCE code begin
-         * In case of PKCE flow then code need to be on the following format: "authorizationCode code_verifier"
-         * e.g: 1ULmknmWhE codeVerifierString
+        /* 
+         * In case the request makes use of PKCE, the code parameter has been build up as "code"="code_value"+" "+"code_verifier"
+         * @see: UaaTokenEndpoint
+         * Next lines will extract code value and code verifier in this case from the "code" variable.
          */
         String codeVerifier = "";
         if (code.contains(" ")) {
         	codeVerifier = code.substring(code.indexOf(" ") + 1);
         	code = code.substring(0, code.indexOf(" "));
         }
-        // PKCE code end
+
         try {
             TokenCode tokenCode = (TokenCode) template.queryForObject(SQL_SELECT_STATEMENT, rowMapper, code);
-            // validate code verifier
-            if (tokenCode != null && isValidCodeVerifier(tokenCode, codeVerifier)) {
+            if (tokenCode != null && evaluateOptionalPKCEParameters(tokenCode, codeVerifier)) {
             	try {
                     if (tokenCode.isExpired()) {
                         logger.debug("[oauth_code] Found code, but it expired:"+tokenCode);
@@ -163,7 +163,14 @@ public class UaaTokenStore implements AuthorizationCodeServices {
         throw new InvalidGrantException("Invalid authorization code: " + code);
     }
     
-    protected boolean isValidCodeVerifier(TokenCode tokenCode, String codeVerifier) {
+    /**
+     * @param tokenCode
+     * @param codeVerifier
+     * @return true when (1) the requests do not make use of PKCE (incl. legacy requests) or 
+     * when (2) the requests make use of PKCE and the parameters have been successfully evaluated. 
+     * Returns false if the requests make use of PKCE, but the evaluation failed.  
+     */
+    protected boolean evaluateOptionalPKCEParameters(TokenCode tokenCode, String codeVerifier) {
     	// Support legacy authorization code storage
     	// TODO: Is it deprecated?
     	if (tokenCode.getExpiresAt() == 0) {
