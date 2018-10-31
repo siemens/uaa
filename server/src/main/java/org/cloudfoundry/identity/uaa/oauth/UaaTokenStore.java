@@ -23,6 +23,9 @@ import org.apache.commons.logging.LogFactory;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
+import org.cloudfoundry.identity.uaa.oauth.pkce.CodeChallengeMethod;
+import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
+import org.cloudfoundry.identity.uaa.oauth.pkce.methods.S256CodeChallengeMethod;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.util.UaaStringUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
@@ -84,16 +87,17 @@ public class UaaTokenStore implements AuthorizationCodeServices {
     private final long expirationTime;
     private final RandomValueStringGenerator generator = new RandomValueStringGenerator(10);
     private final RowMapper rowMapper = new TokenCodeRowMapper();
-
     private final AtomicLong lastClean = new AtomicLong(0);
+    private final PkceValidationService pkceValidationService;
 
-    public UaaTokenStore(DataSource dataSource) {
-        this(dataSource, EXPIRATION_TIME);
+    public UaaTokenStore(DataSource dataSource, PkceValidationService pkceValidationService) {
+        this(dataSource, EXPIRATION_TIME, pkceValidationService);
     }
 
-    public UaaTokenStore(DataSource dataSource, long expirationTime) {
+    public UaaTokenStore(DataSource dataSource, long expirationTime, PkceValidationService pkceValidationService) {
         this.dataSource = dataSource;
         this.expirationTime = expirationTime;
+        this.pkceValidationService = pkceValidationService;
     }
 
     @Override
@@ -144,82 +148,30 @@ public class UaaTokenStore implements AuthorizationCodeServices {
 
         try {
             TokenCode tokenCode = (TokenCode) template.queryForObject(SQL_SELECT_STATEMENT, rowMapper, code);
-            if (tokenCode != null && evaluateOptionalPKCEParameters(tokenCode, codeVerifier)) {
-            	try {
-                    if (tokenCode.isExpired()) {
-                        logger.debug("[oauth_code] Found code, but it expired:"+tokenCode);
-                        throw new InvalidGrantException("Authorization code expired: " + code);
-                    } else if (tokenCode.getExpiresAt() == 0) {
-                        return SerializationUtils.deserialize(tokenCode.getAuthentication());
-                    } else {
-                        return deserializeOauth2Authentication(tokenCode.getAuthentication());
+            if (tokenCode != null) {
+            	OAuth2Authentication oAuth2Authentication = null;
+            	
+            	if (tokenCode.getExpiresAt() == 0) {
+            		oAuth2Authentication = SerializationUtils.deserialize(tokenCode.getAuthentication());
+            	}else {
+            		oAuth2Authentication = deserializeOauth2Authentication(tokenCode.getAuthentication());
+            	}
+
+            	if (pkceValidationService.evaluateOptionalPkceParameters(oAuth2Authentication.getOAuth2Request().getRequestParameters(), codeVerifier)) {
+            		try {
+                        if (tokenCode.isExpired()) {
+                            logger.debug("[oauth_code] Found code, but it expired:"+tokenCode);
+                            throw new InvalidGrantException("Authorization code expired: " + code);
+                        }
+                        return oAuth2Authentication; 
+                    } finally {
+                        template.update(SQL_DELETE_STATEMENT, code);
                     }
-                } finally {
-                    template.update(SQL_DELETE_STATEMENT, code);
-                }
+            	}
             }
         }catch (EmptyResultDataAccessException x) {
         }
         throw new InvalidGrantException("Invalid authorization code: " + code);
-    }
-    
-    /**
-     * @param tokenCode
-     * @param codeVerifier
-     * @return true when (1) the requests do not make use of PKCE (incl. legacy requests) or 
-     * when (2) the requests make use of PKCE and the parameters have been successfully evaluated. 
-     * Returns false if the requests make use of PKCE, but the evaluation failed.  
-     */
-    protected boolean evaluateOptionalPKCEParameters(TokenCode tokenCode, String codeVerifier) {
-    	// Support legacy authorization code storage
-    	// TODO: Is it deprecated?
-    	if (tokenCode.getExpiresAt() == 0) {
-    		return true;
-    	}
-    	// deserialize Authentication from data source
-    	OAuth2Authentication storedAuthentication = deserializeOauth2Authentication(tokenCode.getAuthentication());
-    	if(!storedAuthentication.getOAuth2Request().getRequestParameters().containsKey("code_challenge") && codeVerifier.isEmpty()) {
-    		// There is no stored code challenge for authorization code and there is no code verifier in token request
-    		return true;
-    	}
-    	if(storedAuthentication.getOAuth2Request().getRequestParameters().containsKey("code_challenge") && !codeVerifier.isEmpty()) {
-    		// Has stored code challenge for authorization code and has code verifier in token request
-    		String codeChallenge = storedAuthentication.getOAuth2Request().getRequestParameters().get("code_challenge");
-    		if (storedAuthentication.getOAuth2Request().getRequestParameters().containsKey("code_challenge_method")) {
-    			// Has code challenge method forward to verifier
-    			String codeChallengeMethod = storedAuthentication.getOAuth2Request().getRequestParameters().get("code_challenge_method");
-    			return isCodeVerifierVaild(codeVerifier, codeChallenge, codeChallengeMethod);
-    		}else {
-    			// There is no stored code challenge method for code challenge => code challenge method is default: plain
-    			return isCodeVerifierVaild(codeVerifier, codeChallenge, "plain");
-    		}
-    	}
-    	return false;
-    }
-    
-    private boolean isCodeVerifierVaild(String codeVerifier, String codeChallenge, String codeChallengeMethod) {
-    	String codeVerifierHash = "";
-    	switch (codeChallengeMethod) {
-		case "S256":
-			try {
-				byte[] bytes = codeVerifier.getBytes("US-ASCII");
-				MessageDigest md = MessageDigest.getInstance("SHA-256");
-				md.update(bytes, 0, bytes.length);
-				byte[] digest = md.digest();
-				codeVerifierHash = Base64.encodeBase64URLSafeString(digest);
-			} catch (UnsupportedEncodingException e) {
-			} catch (NoSuchAlgorithmException e) {
-			}
-			break;
-		case "plain":
-			codeVerifierHash = codeChallenge;
-			break;	
-		}
-    	// Compare code verifier with code challenge
-    	if(codeVerifierHash.contentEquals(codeChallenge)) {
-    		return true;
-    	}
-    	return false;
     }
 
     protected byte[] serializeOauth2Authentication(OAuth2Authentication auth2Authentication) {

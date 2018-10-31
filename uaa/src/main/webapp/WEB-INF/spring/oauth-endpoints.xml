@@ -451,9 +451,22 @@
     </bean>
 
     <!-- End -->
+    
+	<!-- PKCE -->
+    <bean id="s256CodeChallengeMethod" class="org.cloudfoundry.identity.uaa.oauth.pkce.methods.S256CodeChallengeMethod"/>
+    
+    <util:map id="codeChallengeMethods" map-class="java.util.HashMap">
+    	<entry key="S256" value-ref="s256CodeChallengeMethod"/>
+	</util:map>
+    
+    <bean id="pkceValidationServices" class="org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService">
+        <constructor-arg ref="codeChallengeMethods" />
+    </bean>
+    <!-- End of PKCE -->
 
     <bean id="authorizationCodeServices" class="org.cloudfoundry.identity.uaa.oauth.UaaTokenStore">
-        <constructor-arg ref="dataSource" />
+        <constructor-arg name="dataSource" ref="dataSource" />
+        <constructor-arg name="pkceValidationService" ref="pkceValidationServices" />
     </bean>
 
     <bean id="userApprovalHandler" class="org.cloudfoundry.identity.uaa.user.UaaUserApprovalHandler">

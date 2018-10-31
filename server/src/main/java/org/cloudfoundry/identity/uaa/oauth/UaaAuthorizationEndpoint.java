@@ -172,17 +172,19 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
         }
         
         /* PKCE parameters check: 
-         *   * code_challenge: (Required) Must not be empty.
+         *   * code_challenge: Required for PKCE flow. Must not be empty.
          *   * codeChallengeMethod: (Optional) Default value: plain 
          */
         if (parameters.containsKey("code_challenge")) {
-        	if (!StringUtils.hasText(parameters.get("code_challenge"))) {
+        	String codeChallenge = parameters.get("code_challenge");
+        	if (!StringUtils.hasText(codeChallenge)) {
     			throw new OAuth2Exception("code_challenge parameter must not be empty.");
+    		}else if(!(43 <= codeChallenge.length() && codeChallenge.length() <= 128)) {
+    			throw new OAuth2Exception("code_challenge parameter length must be minimum 43 and maximum 128 characters.");
     		}
         	if (parameters.containsKey("code_challenge_method")){
         		if (!StringUtils.hasText(parameters.get("code_challenge_method"))) {
         			throw new OAuth2Exception("code_challenge_method parameter must not be empty if provided");
-        			// parameters.replace("code_challenge_method", "plain");
         		}
         		if (!supported_code_challenge_methods.contains(parameters.get("code_challenge_method"))) {
         			throw new OAuth2Exception("Unsupported code challenge method: "

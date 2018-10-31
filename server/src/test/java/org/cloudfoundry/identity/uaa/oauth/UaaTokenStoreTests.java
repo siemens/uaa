@@ -19,6 +19,9 @@ import org.cloudfoundry.identity.uaa.authentication.UaaAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.oauth.UaaTokenStore;
+import org.cloudfoundry.identity.uaa.oauth.pkce.CodeChallengeMethod;
+import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
+import org.cloudfoundry.identity.uaa.oauth.pkce.methods.S256CodeChallengeMethod;
 import org.cloudfoundry.identity.uaa.test.JdbcTestBase;
 import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
 import org.cloudfoundry.identity.uaa.util.UaaStringUtils;
@@ -78,6 +81,7 @@ public class UaaTokenStoreTests extends JdbcTestBase {
     private OAuth2Authentication clientAuthentication;
     private OAuth2Authentication usernamePasswordAuthentication;
     private OAuth2Authentication uaaAuthentication;
+    private PkceValidationService pkceValidationService;
     public static final String LONG_CLIENT_ID = "a-client-id-that-is-longer-than-thirty-six-characters-but-less-than-two-hundred-fifty-five-characters-wow-two-hundred-fifty-five-characters-is-actually-a-very-long-client-id-and-we-hope-that-size-limit-should-be-sufficient-for-any-reasonable-application";
 
     private UaaPrincipal principal = new UaaPrincipal("userid","username","username@test.org", OriginKeys.UAA, null, IdentityZone.getUaa().getId());
@@ -87,8 +91,12 @@ public class UaaTokenStoreTests extends JdbcTestBase {
         jdbcTemplate.update("delete from oauth_code");
 
         List<GrantedAuthority> userAuthorities = Arrays.<GrantedAuthority>asList(new SimpleGrantedAuthority("openid"));
-
-        store = new UaaTokenStore(dataSource);
+        
+        S256CodeChallengeMethod s256CodeChallengeMethod = new S256CodeChallengeMethod();
+        Map<String,CodeChallengeMethod> codeChallengeMethods = new HashMap<String,CodeChallengeMethod>();
+        codeChallengeMethods.put(s256CodeChallengeMethod.getCodeChallengeMethodId(), s256CodeChallengeMethod);
+        pkceValidationService = new PkceValidationService(codeChallengeMethods);
+        store = new UaaTokenStore(dataSource, pkceValidationService);
         legacyCodeServices = new JdbcAuthorizationCodeServices(dataSource);
         BaseClientDetails client = new BaseClientDetails("clientid", null, "openid","client_credentials,password", "oauth.login", null);
         Map<String,String> parameters = new HashMap<>();
@@ -382,7 +390,7 @@ public class UaaTokenStoreTests extends JdbcTestBase {
                     fail("Unknown DB profile:"+db);
             }
 
-            store = new UaaTokenStore(sameConnectionDataSource);
+            store = new UaaTokenStore(sameConnectionDataSource, pkceValidationService);
             legacyCodeServices = new JdbcAuthorizationCodeServices(sameConnectionDataSource);
             int count = 10;
             String lastCode = null;
@@ -395,7 +403,7 @@ public class UaaTokenStoreTests extends JdbcTestBase {
             assertThat(template.queryForObject("SELECT count(*) FROM oauth_code", Integer.class), is(count-1));
         } finally {
             con.close();
-            store = new UaaTokenStore(dataSource);
+            store = new UaaTokenStore(dataSource, pkceValidationService);
             legacyCodeServices = new JdbcAuthorizationCodeServices(dataSource);
         }
     }
@@ -410,7 +418,7 @@ public class UaaTokenStoreTests extends JdbcTestBase {
 
             SameConnectionDataSource sameConnectionDataSource = new SameConnectionDataSource(expirationLoser);
 
-            store = new UaaTokenStore(sameConnectionDataSource, 1);
+            store = new UaaTokenStore(sameConnectionDataSource, 1, pkceValidationService);
             int count = 10;
             for (int i=0; i<count; i++) {
                 String code = store.createAuthorizationCode(clientAuthentication);
@@ -418,7 +426,7 @@ public class UaaTokenStoreTests extends JdbcTestBase {
             }
         } finally {
             con.close();
-            store = new UaaTokenStore(dataSource);
+            store = new UaaTokenStore(dataSource, pkceValidationService);
         }
     }
 
