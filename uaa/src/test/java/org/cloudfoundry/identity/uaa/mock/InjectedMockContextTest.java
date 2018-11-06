@@ -1,7 +1,6 @@
 package org.cloudfoundry.identity.uaa.mock;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.cloudfoundry.identity.uaa.test.HoneycombAuditEventListenerRule;
 import org.cloudfoundry.identity.uaa.test.TestClient;
 import org.flywaydb.core.Flyway;
 import org.junit.AfterClass;
@@ -23,6 +22,8 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.templates.TemplateFormats.markdown;
 
 public class InjectedMockContextTest implements Contextable {
+    @Rule
+    public HoneycombAuditEventListenerRule honeycombAuditEventListenerRule = new HoneycombAuditEventListenerRule();
 
     protected RandomValueStringGenerator generator = new RandomValueStringGenerator(12) {
         @Override
