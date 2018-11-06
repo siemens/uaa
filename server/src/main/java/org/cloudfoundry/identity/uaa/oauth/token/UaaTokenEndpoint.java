@@ -16,12 +16,14 @@
 package org.cloudfoundry.identity.uaa.oauth.token;
 
 import org.cloudfoundry.identity.uaa.oauth.advice.HttpMethodNotSupportedAdvice;
+import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.common.exceptions.OAuth2Exception;
 import org.springframework.security.oauth2.provider.endpoint.TokenEndpoint;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.StringUtils;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -45,6 +47,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.POST;
 public class UaaTokenEndpoint extends TokenEndpoint {
 
     private Boolean allowQueryString = null;
+    private PkceValidationService pkceValidationService = new PkceValidationService();
 
     public UaaTokenEndpoint() {
         setAllowedRequestMethods(new HashSet<>(Arrays.asList(HttpMethod.GET, HttpMethod.POST)));
@@ -82,9 +85,12 @@ public class UaaTokenEndpoint extends TokenEndpoint {
         */
         if (parameters.containsKey("code_verifier")) {
         	String verifier = parameters.get("code_verifier");
-        	if (!verifier.isEmpty()) {
-        		parameters.put("code", parameters.get("code")+" "+parameters.get("code_verifier"));
-        	}
+        	if (!StringUtils.hasText(verifier)) {
+    			throw new OAuth2Exception("code_verifier parameter must not be empty if provided.");
+    		}else if(pkceValidationService.isCodeVerifierParameterValid(verifier)) {
+    			throw new OAuth2Exception(pkceValidationService.CODE_CHALLENGE_OR_CODE_VERIFIER_PARAMETER_REQUREMENTS);
+    		}
+        	parameters.put("code", parameters.get("code")+" "+parameters.get("code_verifier"));
         }
         // End of check
         return postAccessToken(principal, parameters);

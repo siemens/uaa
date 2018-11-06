@@ -1,5 +1,6 @@
 package org.cloudfoundry.identity.uaa.oauth.pkce;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -8,11 +9,12 @@ import java.util.regex.Pattern;
 
 public class PkceValidationService {
 
-	private static final String REGULAR_EXPRESSION_FOR_VALIDATION = "^[\\w\\.\\-\\~]{43,128}$";
+	private final String REGULAR_EXPRESSION_FOR_VALIDATION = "^[\\w\\.\\-\\~]{43,128}$";
 
-	public static final String CODE_CHALLENGE = "code_challenge";
-	public static final String CODE_CHALLENGE_METHOD = "code_challenge_method";
-	public static final String CODE_VERIFIER = "code_verifier";
+	public final String CODE_CHALLENGE = "code_challenge";
+	public final String CODE_CHALLENGE_METHOD = "code_challenge_method";
+	public final String CODE_VERIFIER = "code_verifier";
+	public final String CODE_CHALLENGE_OR_CODE_VERIFIER_PARAMETER_REQUREMENTS = "Length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters";
 
 	private final Map<String, CodeChallengeMethod> codeChallengeMethods;
 
@@ -27,6 +29,14 @@ public class PkceValidationService {
 		this.codeChallengeMethods = new HashMap<String, CodeChallengeMethod>(codeChallengeMethods);
 		PlainCodeChallengeMethod plainCodeChallengeMethod = new PlainCodeChallengeMethod();
 		this.codeChallengeMethods.put(plainCodeChallengeMethod.getCodeChallengeMethodId(), plainCodeChallengeMethod);
+	}
+
+	/**
+	 * Initialise PCKE Validation service with plain code challenge method by
+	 * default.
+	 */
+	public PkceValidationService() {
+		this(Collections.emptyMap());
 	}
 
 	/**
@@ -104,7 +114,7 @@ public class PkceValidationService {
 	 *            Code Verifier parameter from token request.
 	 * @return true or false based on evaluation.
 	 */
-	public static boolean isCodeVerifierParameterValid(String codeVerifier) {
+	public boolean isCodeVerifierParameterValid(String codeVerifier) {
 		return isParameterMatchWithPattern(codeVerifier);
 	}
 
@@ -115,7 +125,7 @@ public class PkceValidationService {
 	 *            Code Challenge parameter from token request.
 	 * @return true or false based on evaluation.
 	 */
-	public static boolean isCodeChallengeParameterValid(String codeChallenge) {
+	public boolean isCodeChallengeParameterValid(String codeChallenge) {
 		return isParameterMatchWithPattern(codeChallenge);
 	}
 
@@ -127,7 +137,7 @@ public class PkceValidationService {
 	 *            Code Verifier or Code Challenge
 	 * @return true or false based on match with regular expression
 	 */
-	protected static boolean isParameterMatchWithPattern(String parameter) {
+	protected boolean isParameterMatchWithPattern(String parameter) {
 		final Pattern pattern = Pattern.compile(REGULAR_EXPRESSION_FOR_VALIDATION);
 		final Matcher matcher = pattern.matcher(parameter);
 

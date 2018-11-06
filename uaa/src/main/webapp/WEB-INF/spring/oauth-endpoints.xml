@@ -155,6 +155,7 @@
         <property name="hybridTokenGranterForAuthCode" ref="hybridTokenGranterForAuthCodeGrant"/>
         <property name="redirectResolver" ref="antPathRedirectResolver"/>
         <property name="openIdSessionStateCalculator" ref="openIdSessionStateCalculator"/>
+        <property name="pkceValidationService" ref="pkceValidationServices"/>
     </bean>
 
     <bean id="hybridTokenGranterForAuthCodeGrant" class="org.cloudfoundry.identity.uaa.oauth.HybridTokenGranterForAuthorizationCode">
