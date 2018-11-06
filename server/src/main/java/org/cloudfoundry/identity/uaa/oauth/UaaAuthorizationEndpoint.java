@@ -167,20 +167,20 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
          *   * code_challenge: Required for PKCE flow. Must not be empty.
          *   * codeChallengeMethod: (Optional) Default value: plain 
          */
-        if (parameters.containsKey("code_challenge")) {
-        	String codeChallenge = parameters.get("code_challenge");
+        if (parameters.containsKey(PkceValidationService.CODE_CHALLENGE)) {
+        	String codeChallenge = parameters.get(PkceValidationService.CODE_CHALLENGE);
         	if (!StringUtils.hasText(codeChallenge)) {
     			throw new OAuth2Exception("code_challenge parameter must not be empty if provided.");
-    		}else if(pkceValidationService.isCodeChallengeParameterValid(codeChallenge)) {
-    			throw new OAuth2Exception(pkceValidationService.CODE_CHALLENGE_OR_CODE_VERIFIER_PARAMETER_REQUREMENTS);
+    		}else if(PkceValidationService.isCodeChallengeParameterValid(codeChallenge)) {
+    			throw new OAuth2Exception(PkceValidationService.CODE_CHALLENGE_OR_CODE_VERIFIER_PARAMETER_FORMAT_ERROR_MESSAGE);
     		}
-        	if (parameters.containsKey("code_challenge_method")){
-        		if (!StringUtils.hasText(parameters.get("code_challenge_method"))) {
+        	if (parameters.containsKey(PkceValidationService.CODE_CHALLENGE_METHOD)){
+        		if (!StringUtils.hasText(parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD))) {
         			throw new OAuth2Exception("code_challenge_method parameter must not be empty if provided");
         		}
-        		if (!pkceValidationService.isCodeChallengeMethodSupported(parameters.get("code_challenge_method"))) {
+        		if (!pkceValidationService.isCodeChallengeMethodSupported(parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD))) {
         			throw new OAuth2Exception("Unsupported code challenge method: "
-        					+ parameters.get("code_challenge_method")
+        					+ parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD)
         					+ ". (Supported methods: "+ pkceValidationService.getSupportedCodeChallengeMethods().toString() + " )");
         		}
         	}

@@ -47,7 +47,6 @@ import static org.springframework.web.bind.annotation.RequestMethod.POST;
 public class UaaTokenEndpoint extends TokenEndpoint {
 
     private Boolean allowQueryString = null;
-    private PkceValidationService pkceValidationService = new PkceValidationService();
 
     public UaaTokenEndpoint() {
         setAllowedRequestMethods(new HashSet<>(Arrays.asList(HttpMethod.GET, HttpMethod.POST)));
@@ -83,14 +82,14 @@ public class UaaTokenEndpoint extends TokenEndpoint {
         /* In case of PKCE (verifier parameter present), the code is modified to be build up as "code" = "code" + " " + "code_verifier",
          * to make the code_verifier available in: UaaTokenStore
         */
-        if (parameters.containsKey("code_verifier")) {
-        	String verifier = parameters.get("code_verifier");
+        if (parameters.containsKey(PkceValidationService.CODE_VERIFIER)) {
+        	String verifier = parameters.get(PkceValidationService.CODE_VERIFIER);
         	if (!StringUtils.hasText(verifier)) {
     			throw new OAuth2Exception("code_verifier parameter must not be empty if provided.");
-    		}else if(pkceValidationService.isCodeVerifierParameterValid(verifier)) {
-    			throw new OAuth2Exception(pkceValidationService.CODE_CHALLENGE_OR_CODE_VERIFIER_PARAMETER_REQUREMENTS);
+    		}else if(PkceValidationService.isCodeVerifierParameterValid(verifier)) {
+    			throw new OAuth2Exception(PkceValidationService.CODE_CHALLENGE_OR_CODE_VERIFIER_PARAMETER_FORMAT_ERROR_MESSAGE);
     		}
-        	parameters.put("code", parameters.get("code")+" "+parameters.get("code_verifier"));
+        	parameters.put("code", parameters.get("code")+" "+parameters.get(PkceValidationService.CODE_VERIFIER));
         }
         // End of check
         return postAccessToken(principal, parameters);
