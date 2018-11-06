@@ -17,6 +17,7 @@ import org.apache.http.HttpHost;
 import org.apache.http.client.utils.URIUtils;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.oauth.client.ClientConstants;
+import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
 import org.cloudfoundry.identity.uaa.oauth.token.CompositeToken;
 import org.cloudfoundry.identity.uaa.util.UaaHttpRequestUtils;
 import org.cloudfoundry.identity.uaa.zone.ClientServicesExtension;
@@ -122,6 +123,8 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
     private OpenIdSessionStateCalculator openIdSessionStateCalculator;
 
     private static final List<String> supported_response_types = Arrays.asList("code", "token", "id_token");
+    
+    private PkceValidationService pkceValidationService = new PkceValidationService();
 
     @RequestMapping(value = "/oauth/authorize")
     public ModelAndView authorize(Map<String, Object> model,
@@ -159,6 +162,30 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
         if (authorizationRequest.getClientId() == null) {
             throw new InvalidClientException("A client id must be provided");
         }
+        
+        /* PKCE parameters check: 
+         *   * code_challenge: Required for PKCE flow. Must not be empty.
+         *   * codeChallengeMethod: (Optional) Default value: plain 
+         */
+        if (parameters.containsKey("code_challenge")) {
+        	String codeChallenge = parameters.get("code_challenge");
+        	if (!StringUtils.hasText(codeChallenge)) {
+    			throw new OAuth2Exception("code_challenge parameter must not be empty if provided.");
+    		}else if(pkceValidationService.isCodeChallengeParameterValid(codeChallenge)) {
+    			throw new OAuth2Exception(pkceValidationService.CODE_CHALLENGE_OR_CODE_VERIFIER_PARAMETER_REQUREMENTS);
+    		}
+        	if (parameters.containsKey("code_challenge_method")){
+        		if (!StringUtils.hasText(parameters.get("code_challenge_method"))) {
+        			throw new OAuth2Exception("code_challenge_method parameter must not be empty if provided");
+        		}
+        		if (!pkceValidationService.isCodeChallengeMethodSupported(parameters.get("code_challenge_method"))) {
+        			throw new OAuth2Exception("Unsupported code challenge method: "
+        					+ parameters.get("code_challenge_method")
+        					+ ". (Supported methods: "+ pkceValidationService.getSupportedCodeChallengeMethods().toString() + " )");
+        		}
+        	}
+        }
+        // End of PKCE parameters check
 
         String resolvedRedirect = "";
         try {
@@ -837,4 +864,8 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
     public void setOpenIdSessionStateCalculator(OpenIdSessionStateCalculator openIdSessionStateCalculator) {
         this.openIdSessionStateCalculator = openIdSessionStateCalculator;
     }
+    
+	public void setPkceValidationService(PkceValidationService pkceValidationService) {
+		this.pkceValidationService = pkceValidationService;
+	}	
 }
