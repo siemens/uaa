@@ -7,6 +7,19 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * PKCE Validation Service.
+ *  - Implement and store Plain code challenge method by default.
+ *  - Can add further code challenge method implementations.   
+ *  - Validate code challenge parameter.
+ *  - Validate code verifier parameter.
+ *  - Validate code challenge method parameter.
+ *  - List supported code challenge methods.
+ *  - Compare code verifier and code challenge based on code challenge method.
+ *
+ * @author Zoltan Maradics
+ */
+
 public class PkceValidationService {
 
 	private static final String REGULAR_EXPRESSION_FOR_VALIDATION = "^[\\w\\.\\-\\~]{43,128}$";
@@ -14,9 +27,7 @@ public class PkceValidationService {
 	public static final String CODE_CHALLENGE = "code_challenge";
 	public static final String CODE_CHALLENGE_METHOD = "code_challenge_method";
 	public static final String CODE_VERIFIER = "code_verifier";
-	public static final String CODE_CHALLENGE_OR_CODE_VERIFIER_PARAMETER_FORMAT_ERROR_MESSAGE = "Length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters";
-	public static final String CODE_CHALLENGE_METHOD_ = "";
-	
+
 	private final Map<String, CodeChallengeMethod> codeChallengeMethods;
 
 	/**
@@ -136,9 +147,12 @@ public class PkceValidationService {
 	 * 
 	 * @param parameter
 	 *            Code Verifier or Code Challenge
-	 * @return true or false based on match with regular expression
+	 * @return true or false based on parameter match with regular expression
 	 */
 	protected static boolean isParameterMatchWithPattern(String parameter) {
+		if (parameter == null) {
+			return false;
+		}
 		final Pattern pattern = Pattern.compile(REGULAR_EXPRESSION_FOR_VALIDATION);
 		final Matcher matcher = pattern.matcher(parameter);
 
