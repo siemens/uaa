@@ -16,16 +16,12 @@ package org.cloudfoundry.identity.uaa.oauth;
 
 
 import com.fasterxml.jackson.core.type.TypeReference;
-
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
-import org.cloudfoundry.identity.uaa.oauth.pkce.CodeChallengeMethod;
 import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
-import org.cloudfoundry.identity.uaa.oauth.pkce.methods.S256CodeChallengeMethod;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.util.UaaStringUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
@@ -46,9 +42,6 @@ import org.springframework.security.oauth2.provider.code.AuthorizationCodeServic
 
 import javax.sql.DataSource;
 import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -87,6 +80,7 @@ public class UaaTokenStore implements AuthorizationCodeServices {
     private final long expirationTime;
     private final RandomValueStringGenerator generator = new RandomValueStringGenerator(10);
     private final RowMapper rowMapper = new TokenCodeRowMapper();
+    
     private final AtomicLong lastClean = new AtomicLong(0);
     private final PkceValidationService pkceValidationService;
 

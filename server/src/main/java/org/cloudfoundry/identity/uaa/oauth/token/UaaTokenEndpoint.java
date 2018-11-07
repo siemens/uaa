@@ -85,9 +85,9 @@ public class UaaTokenEndpoint extends TokenEndpoint {
         if (parameters.containsKey(PkceValidationService.CODE_VERIFIER)) {
         	String verifier = parameters.get(PkceValidationService.CODE_VERIFIER);
         	if (!StringUtils.hasText(verifier)) {
-    			throw new OAuth2Exception("code_verifier parameter must not be empty if provided.");
+    			throw new OAuth2Exception("Code verifier parameter must not be empty if provided.");
     		}else if(PkceValidationService.isCodeVerifierParameterValid(verifier)) {
-    			throw new OAuth2Exception(PkceValidationService.CODE_CHALLENGE_OR_CODE_VERIFIER_PARAMETER_FORMAT_ERROR_MESSAGE);
+    			throw new OAuth2Exception("Code verifier length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters.");
     		}
         	parameters.put("code", parameters.get("code")+" "+parameters.get(PkceValidationService.CODE_VERIFIER));
         }
