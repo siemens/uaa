@@ -80,7 +80,7 @@ public class UaaTokenStore implements AuthorizationCodeServices {
     private final long expirationTime;
     private final RandomValueStringGenerator generator = new RandomValueStringGenerator(10);
     private final RowMapper rowMapper = new TokenCodeRowMapper();
-    
+
     private final AtomicLong lastClean = new AtomicLong(0);
     private final PkceValidationService pkceValidationService;
 
@@ -115,7 +115,6 @@ public class UaaTokenStore implements AuthorizationCodeServices {
                 if (updated==0) {
                     throw new DataIntegrityViolationException("[oauth_code] Failed to insert code. Result was 0");
                 }
-                
                 return code;
             } catch (DataIntegrityViolationException exists) {
                 if (tries>=max_tries) throw exists;
@@ -123,6 +122,8 @@ public class UaaTokenStore implements AuthorizationCodeServices {
         }
         return null;
     }
+
+
 
     @Override
     public OAuth2Authentication consumeAuthorizationCode(String code) throws InvalidGrantException {
