@@ -151,8 +151,8 @@ public class UaaTokenStoreTests extends JdbcTestBase {
     @Test
     public void test_ConsumeCodeWithPkceMethodS256() throws  Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
-    	parameters.put("code_challenge", UaaTestAccounts.CODE_CHALLENGE);
-    	parameters.put("code_challenge_method", UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
+    	parameters.put(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE);
+    	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
     	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
         OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
     	String code = store.createAuthorizationCode(oAuth2Authentication);
@@ -165,8 +165,8 @@ public class UaaTokenStoreTests extends JdbcTestBase {
     @Test
     public void test_ConsumeCodeWithPkceMethodPlain() throws  Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
-    	parameters.put("code_challenge", "Test");
-    	parameters.put("code_challenge_method", "plain");
+    	parameters.put(PkceValidationService.CODE_CHALLENGE, "Test");
+    	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, "plain");
     	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
         OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
     	String code = store.createAuthorizationCode(oAuth2Authentication);
@@ -179,12 +179,12 @@ public class UaaTokenStoreTests extends JdbcTestBase {
     @Test
     public void test_ConsumeCodeWithPkceMethodEmpty() throws  Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
-    	parameters.put("code_challenge", "Test");
+    	parameters.put(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE);
     	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
         OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
     	String code = store.createAuthorizationCode(oAuth2Authentication);
         assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(1));
-        OAuth2Authentication authentication = store.consumeAuthorizationCode(code + " " + "Test");
+        OAuth2Authentication authentication = store.consumeAuthorizationCode(code + " " + UaaTestAccounts.CODE_CHALLENGE);
         assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(0));
         assertNotNull(authentication);
     }
@@ -192,13 +192,13 @@ public class UaaTokenStoreTests extends JdbcTestBase {
     @Test(expected = InvalidGrantException.class)
     public void test_ConsumeCodeWithPkceMethodS256WrongCodeVerifier() throws  Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
-    	parameters.put("code_challenge", "Test");
-    	parameters.put("code_challenge_method", UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
+    	parameters.put(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE);
+    	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
     	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
         OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
     	String code = store.createAuthorizationCode(oAuth2Authentication);
         assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(1));
-        OAuth2Authentication authentication = store.consumeAuthorizationCode(code + " " + UaaTestAccounts.CODE_VERIFIER);
+        OAuth2Authentication authentication = store.consumeAuthorizationCode(code + " " + UaaTestAccounts.CODE_CHALLENGE);
         assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(0));
         assertNotNull(authentication);
     }
@@ -206,7 +206,7 @@ public class UaaTokenStoreTests extends JdbcTestBase {
     @Test(expected = InvalidGrantException.class)
     public void test_ConsumeCodeWithCodeVerifierWithoutStoredCodeChallenge() throws  Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
-    	parameters.put("code_challenge_method", UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
+    	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
     	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
         OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
     	String code = store.createAuthorizationCode(oAuth2Authentication);
@@ -218,8 +218,8 @@ public class UaaTokenStoreTests extends JdbcTestBase {
     @Test(expected = InvalidGrantException.class)
     public void test_ConsumeCodeWithoutCodeVerifierWithCodeChallenge() throws  Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
-    	parameters.put("code_challenge", UaaTestAccounts.CODE_CHALLENGE);
-    	parameters.put("code_challenge_method", UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
+    	parameters.put(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE);
+    	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
     	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
         OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
     	String code = store.createAuthorizationCode(oAuth2Authentication);

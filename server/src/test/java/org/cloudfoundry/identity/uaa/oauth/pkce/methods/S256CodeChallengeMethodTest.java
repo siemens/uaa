@@ -1,5 +1,8 @@
 package org.cloudfoundry.identity.uaa.oauth.pkce.methods;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -16,13 +19,23 @@ public class S256CodeChallengeMethodTest {
 	}
 	
 	@Test
-	public void testCodeChallengeMethodWithMatchParameters() throws Exception {
-		s256CodeChallengeMethod.isCodeVerifierValid(validCodeVerifier, validCodeChallenge);
+	public void testCodeVerifierMethodWithMatchParameters() throws Exception {
+		assertTrue(s256CodeChallengeMethod.isCodeVerifierValid(validCodeVerifier, validCodeChallenge));
 	}
 	
 	@Test
-	public void testCodeChallengeMethodWithMismatchParameters() throws Exception {
-		s256CodeChallengeMethod.isCodeVerifierValid(validCodeVerifier, validCodeVerifier);
+	public void testCodeVerifierMethodWithMismatchParameters() throws Exception {
+		assertFalse(s256CodeChallengeMethod.isCodeVerifierValid(validCodeVerifier, validCodeVerifier));
+	}
+	
+	@Test
+	public void testCodeChallengeIsNull() throws Exception {
+		assertFalse(s256CodeChallengeMethod.isCodeVerifierValid(validCodeVerifier, null));
+	}
+	
+	@Test
+	public void testCodeVerifierIsNull() throws Exception {
+		assertFalse(s256CodeChallengeMethod.isCodeVerifierValid(null, validCodeChallenge));
 	}
 
 }

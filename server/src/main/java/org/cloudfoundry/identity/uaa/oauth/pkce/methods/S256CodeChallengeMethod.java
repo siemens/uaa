@@ -22,6 +22,9 @@ public class S256CodeChallengeMethod implements CodeChallengeMethod {
 
 	@Override
 	public boolean isCodeVerifierValid(String codeVerifier, String codeChallenge) {
+		if (codeVerifier == null || codeChallenge == null) {
+			return false;
+		}
 		try {
 			byte[] bytes = codeVerifier.getBytes("US-ASCII");
 			MessageDigest md = MessageDigest.getInstance("SHA-256");

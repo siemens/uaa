@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 /**
  * PKCE Validation Service.
  *  - Implement and store Plain code challenge method by default.
- *  - Can add further code challenge method implementations.   
+ *  - Can add further code challenge method implementations.
  *  - Validate code challenge parameter.
  *  - Validate code verifier parameter.
  *  - Validate code challenge method parameter.
@@ -22,6 +22,10 @@ import java.util.regex.Pattern;
 
 public class PkceValidationService {
 
+	/* Regular expression match with any string:
+	 *  - Length between 43 and 128 
+	 *  - Contains only [A-Z],[a-z],[0-9],_,.,-,~ characters
+	 */
 	private static final String REGULAR_EXPRESSION_FOR_VALIDATION = "^[\\w\\.\\-\\~]{43,128}$";
 
 	public static final String CODE_CHALLENGE = "code_challenge";
@@ -57,8 +61,10 @@ public class PkceValidationService {
 	 * the default code challenge method will be used.
 	 * 
 	 * @param requestParameters
-	 *            Stored Authorized request parameters
+	 *            Stored Authorization request parameters (maybe with
+	 *            "code_challenge" and "code_challenge_method").
 	 * @param codeVerifier
+	 *            Code verifier parameter from token request.
 	 * @return true when (1) the requests do not make use of PKCE or when (2) the
 	 *         requests make use of PKCE and the parameters have been successfully
 	 *         evaluated. false when (1) one of the code_verifier or code_challenge
@@ -74,8 +80,13 @@ public class PkceValidationService {
 			if (requestParameters.containsKey(CODE_CHALLENGE_METHOD)
 					&& !requestParameters.get(CODE_CHALLENGE_METHOD).isEmpty()) {
 				// Has code challenge method and not empty
-				return codeChallengeMethods.get(requestParameters.get(CODE_CHALLENGE_METHOD))
-						.isCodeVerifierValid(codeVerifier, codeChallenge);
+				if (isCodeChallengeMethodSupported(requestParameters.get(CODE_CHALLENGE_METHOD))) {
+					return codeChallengeMethods.get(requestParameters.get(CODE_CHALLENGE_METHOD))
+							.isCodeVerifierValid(codeVerifier, codeChallenge);
+				} else {
+					// Not supported code challenge method
+					return false;
+				}
 			}
 			// No code challenge method or empty => use default: plain
 			return codeChallengeMethods.get("plain").isCodeVerifierValid(codeVerifier, codeChallenge);

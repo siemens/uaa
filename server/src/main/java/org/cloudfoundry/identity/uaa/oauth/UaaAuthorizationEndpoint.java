@@ -164,7 +164,7 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
         }
         
         /* PKCE parameters check: 
-         *   * code_challenge: Required for PKCE flow. Must not be empty.
+         *   * code_challenge: (Optional) Must be provided for PKCE and must not be empty.
          *   * codeChallengeMethod: (Optional) Default value: plain 
          */
         if (parameters.containsKey(PkceValidationService.CODE_CHALLENGE)) {

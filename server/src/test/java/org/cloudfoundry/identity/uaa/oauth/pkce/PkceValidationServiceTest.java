@@ -88,32 +88,28 @@ public class PkceValidationServiceTest {
 	@Test
 	public void testPlainCodeChallengeMethodFail() throws Exception {
 		PlainCodeChallengeMethod plainCodeChallengeMethod = new PlainCodeChallengeMethod();
-		assertFalse(plainCodeChallengeMethod.isCodeVerifierValid("codeVerifier", "codeChallenge"));
+		assertFalse(plainCodeChallengeMethod.isCodeVerifierValid(validPlainCodeChallengeOrCodeVerifierParameter1, validPlainCodeChallengeOrCodeVerifierParameter2));
 	}
 
 	@Test
 	public void testPlainCodeChallengeMethodPass() throws Exception {
 		PlainCodeChallengeMethod plainCodeChallengeMethod = new PlainCodeChallengeMethod();
-		assertTrue(plainCodeChallengeMethod.isCodeVerifierValid("SameString", "SameString"));
+		assertTrue(plainCodeChallengeMethod.isCodeVerifierValid(validPlainCodeChallengeOrCodeVerifierParameter1, validPlainCodeChallengeOrCodeVerifierParameter1));
 	}
-	
+
 	@Test
 	public void testNoPkceParametersForEvaluation() throws Exception {
-		authorizeRequestParameters.put("testParameter1", "testValue1");
-		authorizeRequestParameters.put("testParameter2", "testValue2");
 		assertTrue(pkceValidationService.evaluateOptionalPkceParameters(authorizeRequestParameters, ""));
 	}
 
 	@Test
 	public void testCodeChallengeMissingForEvaluation() throws Exception {
-		authorizeRequestParameters.put("testParameter1", "testValue1");
 		assertFalse(pkceValidationService.evaluateOptionalPkceParameters(authorizeRequestParameters,
 				validPlainCodeChallengeOrCodeVerifierParameter1));
 	}
 
 	@Test
 	public void testCodeVerifierMissingForEvaluation() throws Exception {
-		authorizeRequestParameters.put("testParameter1", "testValue1");
 		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE,
 				validPlainCodeChallengeOrCodeVerifierParameter1);
 		assertFalse(pkceValidationService.evaluateOptionalPkceParameters(authorizeRequestParameters, ""));
@@ -121,7 +117,6 @@ public class PkceValidationServiceTest {
 
 	@Test
 	public void testEmptyCodeChallengeMethodForEvaluation() throws Exception {
-		authorizeRequestParameters.put("testParameter1", "testValue1");
 		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE,
 				validPlainCodeChallengeOrCodeVerifierParameter1);
 		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, "");
@@ -131,7 +126,6 @@ public class PkceValidationServiceTest {
 
 	@Test
 	public void testEmptyCodeChallengeMethodForEvaluationWithInvalidPkceParameters() throws Exception {
-		authorizeRequestParameters.put("testParameter1", "testValue1");
 		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE,
 				validPlainCodeChallengeOrCodeVerifierParameter1);
 		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, "");
@@ -141,7 +135,6 @@ public class PkceValidationServiceTest {
 
 	@Test
 	public void testNoCodeChallengeMethodForEvaluation() throws Exception {
-		authorizeRequestParameters.put("testParameter1", "testValue1");
 		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE,
 				validPlainCodeChallengeOrCodeVerifierParameter1);
 		assertTrue(pkceValidationService.evaluateOptionalPkceParameters(authorizeRequestParameters,
@@ -150,7 +143,6 @@ public class PkceValidationServiceTest {
 
 	@Test
 	public void testNoCodeChallengeMethodForEvaluationWithInvalidPkceParameters() throws Exception {
-		authorizeRequestParameters.put("testParameter1", "testValue1");
 		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE,
 				validPlainCodeChallengeOrCodeVerifierParameter1);
 		assertFalse(pkceValidationService.evaluateOptionalPkceParameters(authorizeRequestParameters,
