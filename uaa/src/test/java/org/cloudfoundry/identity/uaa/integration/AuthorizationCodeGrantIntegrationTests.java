@@ -53,6 +53,7 @@ public class AuthorizationCodeGrantIntegrationTests {
         testSuccessfulAuthorizationCodeFlow_Internal();
         testSuccessfulAuthorizationCodeFlow_Internal();
     }
+    
     @Test
     public void testSuccessfulAuthorizationCodeFlowWithPKCE() throws Exception {
         testSuccessfulAuthorizationCodeFlowWithPKCE_Internal();
