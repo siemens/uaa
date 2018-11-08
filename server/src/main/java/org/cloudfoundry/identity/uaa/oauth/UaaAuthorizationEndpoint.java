@@ -163,29 +163,7 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
             throw new InvalidClientException("A client id must be provided");
         }
         
-        /* PKCE parameters check: 
-         *   * code_challenge: (Optional) Must be provided for PKCE and must not be empty.
-         *   * codeChallengeMethod: (Optional) Default value: plain 
-         */
-        if (parameters.containsKey(PkceValidationService.CODE_CHALLENGE)) {
-        	String codeChallenge = parameters.get(PkceValidationService.CODE_CHALLENGE);
-        	if (!StringUtils.hasText(codeChallenge)) {
-    			throw new OAuth2Exception("Code challenge parameter must not be empty if provided.");
-    		}else if(!PkceValidationService.isCodeChallengeParameterValid(codeChallenge)) {
-    			throw new OAuth2Exception("Code challenge length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters.");
-    		}
-        	if (parameters.containsKey(PkceValidationService.CODE_CHALLENGE_METHOD)){
-        		if (!StringUtils.hasText(parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD))) {
-        			throw new OAuth2Exception("Code challenge method parameter must not be empty if provided");
-        		}
-        		if (!pkceValidationService.isCodeChallengeMethodSupported(parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD))) {
-        			throw new OAuth2Exception("Unsupported code challenge method: "
-        					+ parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD)
-        					+ ". (Supported methods: "+ pkceValidationService.getSupportedCodeChallengeMethods().toString() + " )");
-        		}
-        	}
-        }
-        // End of PKCE parameters check
+        parameters = pkceParameterValidation(parameters);
 
         String resolvedRedirect = "";
         try {
@@ -269,6 +247,38 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
             throw e;
         }
 
+    }
+    
+    /**
+     * PKCE parameters check: 
+     * 		code_challenge: (Optional) Must be provided for PKCE and must not be empty.
+     * 		codeChallengeMethod: (Optional) Default value: plain 
+     * @param parameters
+     * 			Authorization request parameters
+     * @return Authorization request with validated PKCE parameters
+     * @throws OAuth2Exception
+     * 			In case of PKCE parameters validation errors.
+     */
+    protected Map<String, String> pkceParameterValidation(Map<String, String> parameters) throws OAuth2Exception {
+        if (parameters.containsKey(PkceValidationService.CODE_CHALLENGE)) {
+        	String codeChallenge = parameters.get(PkceValidationService.CODE_CHALLENGE);
+        	if (!StringUtils.hasText(codeChallenge)) {
+    			throw new OAuth2Exception("Code challenge parameter must not be empty if provided.");
+    		}else if(!PkceValidationService.isCodeChallengeParameterValid(codeChallenge)) {
+    			throw new OAuth2Exception("Code challenge length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters.");
+    		}
+        	if (parameters.containsKey(PkceValidationService.CODE_CHALLENGE_METHOD)){
+        		if (!StringUtils.hasText(parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD))) {
+        			throw new OAuth2Exception("Code challenge method parameter must not be empty if provided");
+        		}
+        		if (!pkceValidationService.isCodeChallengeMethodSupported(parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD))) {
+        			throw new OAuth2Exception("Unsupported code challenge method: "
+        					+ parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD)
+        					+ ". (Supported methods: "+ pkceValidationService.getSupportedCodeChallengeMethods().toString() + " )");
+        		}
+        	}
+        }
+        return parameters;
     }
 
     // This method handles /oauth/authorize calls when user is not logged in and the prompt=none param is used

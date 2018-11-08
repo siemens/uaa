@@ -79,20 +79,30 @@ public class UaaTokenEndpoint extends TokenEndpoint {
             logger.debug("Call to /oauth/token contains a query string. Aborting.");
             throw new HttpRequestMethodNotSupportedException("POST");
         }
-        /* In case of PKCE (verifier parameter present), the code is modified to be build up as "code" = "code" + " " + "code_verifier",
-         * to make the code_verifier available in: UaaTokenStore
-        */
-        if (parameters.containsKey(PkceValidationService.CODE_VERIFIER)) {
-        	String verifier = parameters.get(PkceValidationService.CODE_VERIFIER);
-        	if (!StringUtils.hasText(verifier)) {
+        parameters = mergeAuthorizationCodeWithCodeVerifier(parameters);
+        return postAccessToken(principal, parameters);
+    }
+    /**
+     * In case of PKCE (code_verifier parameter present), the code parameter in request
+     * is modified to be build up as "code" = "code" + " " + "code_verifier",
+     * to make the code_verifier available in: UaaTokenStore.
+     * @param tokenRequestParameters
+     * 				Token request parameters for validation and merge.
+     * @return tokenRequestParameters with merged code value if had code verifier.
+     * @throws OAuth2Exception 
+     * 				Code verifier parameter validation errors.
+     */
+    protected Map<String, String> mergeAuthorizationCodeWithCodeVerifier(Map<String, String> tokenRequestParameters) throws OAuth2Exception{
+        if (tokenRequestParameters.containsKey(PkceValidationService.CODE_VERIFIER) && tokenRequestParameters.containsKey("code")) {
+        	String codeVerifier = tokenRequestParameters.get(PkceValidationService.CODE_VERIFIER);
+        	if (!StringUtils.hasText(codeVerifier)) {
     			throw new OAuth2Exception("Code verifier parameter must not be empty if provided.");
-    		}else if(!PkceValidationService.isCodeVerifierParameterValid(verifier)) {
+    		}else if(!PkceValidationService.isCodeVerifierParameterValid(codeVerifier)) {
     			throw new OAuth2Exception("Code verifier length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters.");
     		}
-        	parameters.put("code", parameters.get("code")+" "+parameters.get(PkceValidationService.CODE_VERIFIER));
+        	tokenRequestParameters.put("code", tokenRequestParameters.get("code")+" "+tokenRequestParameters.get(PkceValidationService.CODE_VERIFIER));
         }
-        // End of check
-        return postAccessToken(principal, parameters);
+        return tokenRequestParameters;
     }
 
     @RequestMapping(value = "**")

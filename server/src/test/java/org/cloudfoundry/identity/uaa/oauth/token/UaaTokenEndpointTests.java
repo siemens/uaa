@@ -15,6 +15,8 @@
 
 package org.cloudfoundry.identity.uaa.oauth.token;
 
+import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
+import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -22,13 +24,16 @@ import org.junit.rules.ExpectedException;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
+import org.springframework.security.oauth2.common.exceptions.OAuth2Exception;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 
 import javax.servlet.http.HttpServletRequest;
 import java.security.Principal;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import static java.util.Collections.emptyMap;
@@ -37,6 +42,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -121,5 +127,30 @@ public class UaaTokenEndpointTests {
             assertEquals("GET", e.getMethod());
             throw e;
         }
+    }
+    
+    @Test(expected = OAuth2Exception.class)
+    public void testEmptyCodeVerifierParameter() throws Exception {
+    	Map<String, String> parameters = new HashMap<String, String>();
+    	parameters.put("code", "TestAuthorizationCode");
+    	parameters.put(PkceValidationService.CODE_VERIFIER, "");
+    	parameters = endpoint.mergeAuthorizationCodeWithCodeVerifier(parameters);
+    }
+    
+    @Test(expected = OAuth2Exception.class)
+    public void testInvalidCodeVerifierParameter() throws Exception {
+    	Map<String, String> parameters = new HashMap<String, String>();
+    	parameters.put("code", "TestAuthorizationCode");
+    	parameters.put(PkceValidationService.CODE_VERIFIER, "#InvalidCodeVerifier#");
+    	parameters = endpoint.mergeAuthorizationCodeWithCodeVerifier(parameters);
+    }
+    
+    @Test
+    public void testMergeAuthCodeWithCodeVerifier() throws Exception {
+    	Map<String, String> parameters = new HashMap<String, String>();
+    	parameters.put("code", "TestAuthorizationCode");
+    	parameters.put(PkceValidationService.CODE_VERIFIER, UaaTestAccounts.CODE_VERIFIER);
+    	parameters = endpoint.mergeAuthorizationCodeWithCodeVerifier(parameters);
+    	assertTrue(parameters.get("code").contentEquals("TestAuthorizationCode" + " " + UaaTestAccounts.CODE_VERIFIER));
     }
 }
