@@ -171,7 +171,7 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
         	String codeChallenge = parameters.get(PkceValidationService.CODE_CHALLENGE);
         	if (!StringUtils.hasText(codeChallenge)) {
     			throw new OAuth2Exception("Code challenge parameter must not be empty if provided.");
-    		}else if(PkceValidationService.isCodeChallengeParameterValid(codeChallenge)) {
+    		}else if(!PkceValidationService.isCodeChallengeParameterValid(codeChallenge)) {
     			throw new OAuth2Exception("Code challenge length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters.");
     		}
         	if (parameters.containsKey(PkceValidationService.CODE_CHALLENGE_METHOD)){
