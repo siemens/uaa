@@ -55,9 +55,9 @@ public class AuthorizationCodeGrantIntegrationTests {
     }
     
     @Test
-    public void testSuccessfulAuthorizationCodeFlowWithPKCE() throws Exception {
-        testSuccessfulAuthorizationCodeFlowWithPKCE_Internal();
-        testSuccessfulAuthorizationCodeFlowWithPKCE_Internal();
+    public void testSuccessfulAuthorizationCodeFlowWithPkce() throws Exception {
+        testSuccessfulAuthorizationCodeFlowWithPkce_Internal();
+        testSuccessfulAuthorizationCodeFlowWithPkce_Internal();
     }
     
     @Test
@@ -118,7 +118,7 @@ public class AuthorizationCodeGrantIntegrationTests {
         assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"user_id\""));
     }
     
-    public void testSuccessfulAuthorizationCodeFlowWithPKCE_Internal() throws Exception {
+    public void testSuccessfulAuthorizationCodeFlowWithPkce_Internal() throws Exception {
         AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
 
         Map<String, String> body = IntegrationTestUtils.getAuthorizationCodeTokenMapWithPKCE(serverRunning,
