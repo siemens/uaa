@@ -48,7 +48,7 @@ public class ClientInfoEndpointIntegrationTests {
 
         HttpHeaders headers = new HttpHeaders();
         AuthorizationCodeResourceDetails app = testAccounts.getDefaultAuthorizationCodeResource();
-        headers.set("Authorization", testAccounts.getAuthorizationHeader(app.getClientId(), app.getClientSecret()));
+        headers.set("Authorization", UaaTestAccounts.createAuthorizationHeader(app.getClientId(), app.getClientSecret()));
         headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
 
         @SuppressWarnings("rawtypes")
@@ -63,7 +63,7 @@ public class ClientInfoEndpointIntegrationTests {
 
         HttpHeaders headers = new HttpHeaders();
         ImplicitResourceDetails app = testAccounts.getDefaultImplicitResource();
-        headers.set("Authorization", testAccounts.getAuthorizationHeader(app.getClientId(), ""));
+        headers.set("Authorization", UaaTestAccounts.createAuthorizationHeader(app.getClientId(), ""));
         headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
 
         @SuppressWarnings("rawtypes")
@@ -78,7 +78,7 @@ public class ClientInfoEndpointIntegrationTests {
 
         HttpHeaders headers = new HttpHeaders();
         ResourceOwnerPasswordResourceDetails app = testAccounts.getDefaultResourceOwnerPasswordResource();
-        headers.set("Authorization", testAccounts.getAuthorizationHeader(app.getClientId(), "bogus"));
+        headers.set("Authorization", UaaTestAccounts.createAuthorizationHeader(app.getClientId(), "bogus"));
         headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
 
         @SuppressWarnings("rawtypes")

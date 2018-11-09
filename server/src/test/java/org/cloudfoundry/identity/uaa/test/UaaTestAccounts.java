@@ -74,6 +74,11 @@ public class UaaTestAccounts implements TestAccounts {
     public static UaaTestAccounts standard(UrlHelper server) {
         return new UaaTestAccounts(server);
     }
+    
+    public static String createAuthorizationHeader(String username, String password) {
+        String credentials = String.format("%s:%s", username, password);
+        return String.format("Basic %s", new String(Base64.encode(credentials.getBytes())));
+    }
 
     @Override
     public String getUserName() {
@@ -126,12 +131,7 @@ public class UaaTestAccounts implements TestAccounts {
     public String getAuthorizationHeader(String prefix, String defaultUsername, String defaultPassword) {
         String username = environment.getProperty(prefix + ".username", defaultUsername);
         String password = environment.getProperty(prefix + ".password", defaultPassword);
-        return getAuthorizationHeader(username, password);
-    }
-
-    public String getAuthorizationHeader(String username, String password) {
-        String credentials = String.format("%s:%s", username, password);
-        return String.format("Basic %s", new String(Base64.encode(credentials.getBytes())));
+        return createAuthorizationHeader(username, password);
     }
 
     public String getJsonCredentials(String prefix, String defaultUsername, String defaultPassword) {

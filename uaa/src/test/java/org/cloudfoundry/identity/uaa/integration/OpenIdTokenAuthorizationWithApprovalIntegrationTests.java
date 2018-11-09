@@ -406,7 +406,7 @@ public class OpenIdTokenAuthorizationWithApprovalIntegrationTests {
         formData.add("code", value);
         HttpHeaders tokenHeaders = new HttpHeaders();
         tokenHeaders.set("Authorization",
-            testAccounts.getAuthorizationHeader(clientId, clientSecret));
+            UaaTestAccounts.createAuthorizationHeader(clientId, clientSecret));
         @SuppressWarnings("rawtypes")
         ResponseEntity<Map> tokenResponse = serverRunning.postForMap("/oauth/token", formData, tokenHeaders);
         assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());

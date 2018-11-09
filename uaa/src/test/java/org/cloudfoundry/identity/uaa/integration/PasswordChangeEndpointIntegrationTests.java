@@ -187,7 +187,7 @@ public class PasswordChangeEndpointIntegrationTests {
         headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         headers.set("Authorization",
-                        testAccounts.getAuthorizationHeader("app", "appclientsecret"));
+        		        UaaTestAccounts.createAuthorizationHeader("app", "appclientsecret"));
 
         MultiValueMap<String, String> data = new LinkedMultiValueMap<String, String>();
         data.put("grant_type", Collections.singletonList("password"));

@@ -61,6 +61,32 @@ public class AuthorizationCodeGrantIntegrationTests {
     }
     
     @Test
+    public void testAuthorizationCodeFlowWithPkce() throws Exception {
+    	AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
+    	Map<String,String> authorizeEndpointResponse = IntegrationTestUtils.
+    			getAuthorizationCode(serverRunning, 
+    			                     resource.getClientId(), 
+    			                     testAccounts.getUserName(),
+                                     testAccounts.getPassword(), 
+    								 null, 
+    								 resource.getPreEstablishedRedirectUri(), 
+    								 null, 
+    								 UaaTestAccounts.CODE_CHALLENGE,
+                                     UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
+    	assertTrue(authorizeEndpointResponse.containsKey("code"));
+    	assertTrue(authorizeEndpointResponse.containsKey("JSESSIONID"));
+    	ResponseEntity<Map> tokenEndpointResponse = IntegrationTestUtils.
+    			getTokens(resource.getClientId(),
+    					  resource.getPreEstablishedRedirectUri(), 
+    					  null, 
+    					  serverRunning, 
+    					  UaaTestAccounts.CODE_VERIFIER, 
+    					  resource.getClientSecret(),
+    					  authorizeEndpointResponse.get("code"));
+    	assertEquals(HttpStatus.OK, tokenEndpointResponse.getStatusCode());
+    }
+    
+    @Test
     public void testZoneDoesNotExist() {
         ServerRunning.UriBuilder builder = serverRunning.buildUri(serverRunning.getAuthorizationUri().replace("localhost", "testzonedoesnotexist.localhost"))
                 .queryParam("response_type", "code")

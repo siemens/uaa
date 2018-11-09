@@ -494,7 +494,7 @@ public class ScimGroupEndpointsIntegrationTests {
         formData.add("username", username);
         formData.add("password", password);
         HttpHeaders tokenHeaders = new HttpHeaders();
-        tokenHeaders.set("Authorization", testAccounts.getAuthorizationHeader(clientId, clientSecret));
+        tokenHeaders.set("Authorization", UaaTestAccounts.createAuthorizationHeader(clientId, clientSecret));
         @SuppressWarnings("rawtypes")
         ResponseEntity<Map> tokenResponse = serverRunning.postForMap("/oauth/token", formData, tokenHeaders);
         assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());
@@ -586,7 +586,7 @@ public class ScimGroupEndpointsIntegrationTests {
         formData.add("grant_type", GRANT_TYPE_AUTHORIZATION_CODE);
         formData.add("code", location.split("code=")[1].split("&")[0]);
         HttpHeaders tokenHeaders = new HttpHeaders();
-        tokenHeaders.set("Authorization", testAccounts.getAuthorizationHeader(clientId, clientSecret));
+        tokenHeaders.set("Authorization", UaaTestAccounts.createAuthorizationHeader(clientId, clientSecret));
         @SuppressWarnings("rawtypes")
         ResponseEntity<Map> tokenResponse = serverRunning.postForMap("/oauth/token", formData, tokenHeaders);
         assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());

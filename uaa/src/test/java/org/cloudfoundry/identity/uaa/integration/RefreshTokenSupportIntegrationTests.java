@@ -148,7 +148,7 @@ public class RefreshTokenSupportIntegrationTests {
         formData.add("code", location.split("code=")[1].split("&")[0]);
         HttpHeaders tokenHeaders = new HttpHeaders();
         tokenHeaders.set("Authorization",
-                        testAccounts.getAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
+        		        UaaTestAccounts.createAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
         tokenHeaders.set("Cache-Control", "no-store");
         @SuppressWarnings("rawtypes")
         ResponseEntity<Map> tokenResponse = serverRunning.postForMap("/oauth/token", formData, tokenHeaders);

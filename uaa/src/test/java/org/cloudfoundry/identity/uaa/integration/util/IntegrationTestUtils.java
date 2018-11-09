@@ -1180,7 +1180,6 @@ public class IntegrationTestUtils {
     	resource.setClientSecret(clientSecret);
 
     	return getAuthorizationCodeTokenMap(serverRunning,
-    	  testAccounts,
     	  clientId,
     	  clientSecret,
     	  username,
@@ -1206,7 +1205,6 @@ public class IntegrationTestUtils {
         resource.setClientSecret(clientSecret);
 
         return getAuthorizationCodeTokenMap(serverRunning,
-          testAccounts,
           clientId,
           clientSecret,
           username,
@@ -1362,14 +1360,12 @@ public class IntegrationTestUtils {
         return authorizeEndpointResult;
     }
     
-    public static Map<String, String> getTokens(String clientId,
+    public static ResponseEntity<Map> getTokens(String clientId,
     												  String redirectUri,
     												  String tokenResponseType,
     												  ServerRunning serverRunning,
-                                                      UaaTestAccounts testAccounts,
                                                       String codeVerifier,
                                                       String clientSecret,
-                                                      boolean callCheckToken,
                                                       String authorizationCode){
     	MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
     	formData.clear();
@@ -1390,29 +1386,11 @@ public class IntegrationTestUtils {
         }
         // End
         HttpHeaders tokenHeaders = new HttpHeaders();
-        tokenHeaders.set("Authorization", testAccounts.getAuthorizationHeader(clientId, clientSecret));
-        @SuppressWarnings("rawtypes")
-        ResponseEntity<Map> tokenResponse = serverRunning.postForMap("/oauth/token", formData, tokenHeaders);
-        assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());
-        Map<String, String> body = tokenResponse.getBody();
-
-        if (callCheckToken) {
-        	@SuppressWarnings("unchecked")
-            OAuth2AccessToken accessToken = DefaultOAuth2AccessToken.valueOf(tokenResponse.getBody());
-            formData = new LinkedMultiValueMap<>();
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", testAccounts.getAuthorizationHeader(clientId, clientSecret));
-            formData.add("token", accessToken.getValue());
-            tokenResponse = serverRunning.postForMap("/check_token", formData, headers);
-            assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());
-            //System.err.println(tokenResponse.getBody());
-            assertNotNull(tokenResponse.getBody().get("iss"));
-        }
-        return body;
+        tokenHeaders.set("Authorization", UaaTestAccounts.createAuthorizationHeader(clientId, clientSecret));
+        return serverRunning.postForMap("/oauth/token", formData, tokenHeaders);
     }
 
     public static Map<String, String> getAuthorizationCodeTokenMap(ServerRunning serverRunning,
-                                                                   UaaTestAccounts testAccounts,
                                                                    String clientId,
                                                                    String clientSecret,
                                                                    String username,
@@ -1426,7 +1404,29 @@ public class IntegrationTestUtils {
                                                                    String codeChallengeMethod,
                                                                    String codeVerifier) throws Exception {
     	Map<String,String> authorizeEndpointResponse = getAuthorizationCode(serverRunning, clientId, username, password, jSessionId, redirectUri, loginHint, codeChallenge, codeChallengeMethod);
-        return getTokens(clientId, redirectUri, tokenResponseType, serverRunning, testAccounts, codeVerifier, clientSecret, callCheckToken, authorizeEndpointResponse.get("code"));
+    	@SuppressWarnings("rawtypes")
+		ResponseEntity<Map> tokenResponse = getTokens(clientId, redirectUri, tokenResponseType, serverRunning, codeVerifier, clientSecret, authorizeEndpointResponse.get("code"));
+        assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());
+        Map<String, String> body = tokenResponse.getBody();
+        if (callCheckToken) {
+        	callCheckToken(serverRunning, body, clientId, clientSecret);
+        }
+        
+        return body;
+    }
+    
+    public static void callCheckToken(ServerRunning serverRunning, Map<String, String> body, String clientId, String clientSecret) {
+    	MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+    	@SuppressWarnings("unchecked")
+        OAuth2AccessToken accessToken = DefaultOAuth2AccessToken.valueOf(body);
+        formData = new LinkedMultiValueMap<>();
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", UaaTestAccounts.createAuthorizationHeader(clientId, clientSecret));
+        formData.add("token", accessToken.getValue());
+        ResponseEntity<Map> tokenResponse = serverRunning.postForMap("/check_token", formData, headers);
+        assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());
+        //System.err.println(tokenResponse.getBody());
+        assertNotNull(tokenResponse.getBody().get("iss"));
     }
 
     public static boolean hasAuthority(String authority, Collection<GrantedAuthority> authorities) {

@@ -78,7 +78,7 @@ public class PasswordGrantIT {
     public void testUserLoginViaPasswordGrant() throws Exception {
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
-        headers.add("Authorization", ((UaaTestAccounts) testAccounts).getAuthorizationHeader("cf", ""));
+        headers.add("Authorization", UaaTestAccounts.createAuthorizationHeader("cf", ""));
 
         LinkedMultiValueMap<String, String> postBody = new LinkedMultiValueMap<>();
         postBody.add("grant_type", "password");
@@ -97,7 +97,7 @@ public class PasswordGrantIT {
     public void testUserLoginViaPasswordGrantLoginHintUaa() throws Exception {
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
-        headers.add("Authorization", ((UaaTestAccounts) testAccounts).getAuthorizationHeader("cf", ""));
+        headers.add("Authorization", UaaTestAccounts.createAuthorizationHeader("cf", ""));
 
         LinkedMultiValueMap<String, String> postBody = new LinkedMultiValueMap<>();
         postBody.add("grant_type", "password");
@@ -154,7 +154,7 @@ public class PasswordGrantIT {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
-            headers.add("Authorization", ((UaaTestAccounts)testAccounts).getAuthorizationHeader("cf", ""));
+            headers.add("Authorization", UaaTestAccounts.createAuthorizationHeader("cf", ""));
 
             LinkedMultiValueMap<String, String> postBody = new LinkedMultiValueMap<>();
             postBody.add("grant_type", "password");
@@ -177,7 +177,7 @@ public class PasswordGrantIT {
     public void testUserLoginViaPasswordGrantInvalidLoginHint() throws Exception {
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
-        headers.add("Authorization", ((UaaTestAccounts) testAccounts).getAuthorizationHeader("cf", ""));
+        headers.add("Authorization", UaaTestAccounts.createAuthorizationHeader("cf", ""));
 
         LinkedMultiValueMap<String, String> postBody = new LinkedMultiValueMap<>();
         postBody.add("grant_type", "password");
@@ -202,7 +202,7 @@ public class PasswordGrantIT {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
-        headers.add("Authorization", ((UaaTestAccounts) testAccounts).getAuthorizationHeader("cf", ""));
+        headers.add("Authorization", UaaTestAccounts.createAuthorizationHeader("cf", ""));
 
         LinkedMultiValueMap<String, String> postBody = new LinkedMultiValueMap<>();
         postBody.add("grant_type", "password");

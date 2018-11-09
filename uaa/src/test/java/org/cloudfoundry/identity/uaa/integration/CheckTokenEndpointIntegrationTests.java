@@ -140,7 +140,7 @@ public class CheckTokenEndpointIntegrationTests {
         formData.add("code", location.split("code=")[1].split("&")[0]);
         HttpHeaders tokenHeaders = new HttpHeaders();
         tokenHeaders.set("Authorization",
-                        testAccounts.getAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
+                        UaaTestAccounts.createAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
         @SuppressWarnings("rawtypes")
         ResponseEntity<Map> tokenResponse = serverRunning.postForMap("/oauth/token", formData, tokenHeaders);
         assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());
@@ -151,7 +151,7 @@ public class CheckTokenEndpointIntegrationTests {
         HttpHeaders headers = new HttpHeaders();
         formData = new LinkedMultiValueMap<String, String>();
         headers.set("Authorization",
-                        testAccounts.getAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
+                        UaaTestAccounts.createAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
         formData.add("token", accessToken.getValue());
 
         tokenResponse = serverRunning.postForMap("/check_token", formData, headers);
@@ -173,7 +173,7 @@ public class CheckTokenEndpointIntegrationTests {
         ClientCredentialsResourceDetails resource = testAccounts.getClientCredentialsResource("app", null, "app",
                         "appclientsecret");
         headers.set("Authorization",
-                        testAccounts.getAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
+                        UaaTestAccounts.createAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
         headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
 
         @SuppressWarnings("rawtypes")
@@ -226,7 +226,7 @@ public class CheckTokenEndpointIntegrationTests {
 
         HttpHeaders headers = new HttpHeaders();
         ClientCredentialsResourceDetails resource = testAccounts.getClientCredentialsResource("app", null, "app", "appclientsecret");
-        headers.set("Authorization", testAccounts.getAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
+        headers.set("Authorization", UaaTestAccounts.createAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
         headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
 
         @SuppressWarnings("rawtypes")
@@ -248,7 +248,7 @@ public class CheckTokenEndpointIntegrationTests {
         HttpHeaders tokenHeaders = new HttpHeaders();
         ClientCredentialsResourceDetails resource = testAccounts.getClientCredentialsResource("app", null, "app", "appclientsecret");
         tokenHeaders.set("Authorization",
-                        testAccounts.getAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
+                        UaaTestAccounts.createAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
         formData.add("token", accessToken.getValue());
 
         @SuppressWarnings("rawtypes")
@@ -272,7 +272,7 @@ public class CheckTokenEndpointIntegrationTests {
         HttpHeaders tokenHeaders = new HttpHeaders();
         ClientCredentialsResourceDetails resource = testAccounts.getClientCredentialsResource("app", null, "app", "appclientsecret");
         tokenHeaders.set("Authorization",
-                        testAccounts.getAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
+        		        UaaTestAccounts.createAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
         formData.add("token", accessToken.getValue());
 
         @SuppressWarnings("rawtypes")
@@ -296,7 +296,7 @@ public class CheckTokenEndpointIntegrationTests {
         HttpHeaders tokenHeaders = new HttpHeaders();
         ClientCredentialsResourceDetails resource = testAccounts.getClientCredentialsResource("app", null, "app", "appclientsecret");
         tokenHeaders.set("Authorization",
-                        testAccounts.getAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
+        		        UaaTestAccounts.createAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
         formData.add("token", accessToken.getValue());
 
         @SuppressWarnings("rawtypes")

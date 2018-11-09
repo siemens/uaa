@@ -107,7 +107,7 @@ public class PasswordGrantIntegrationTests {
     private ResponseEntity<String> makePasswordGrantRequest(String userName, String password, String clientId, String clientSecret, String url) {
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(Arrays.asList(APPLICATION_JSON));
-        headers.add("Authorization", testAccounts.getAuthorizationHeader(clientId, clientSecret));
+        headers.add("Authorization", UaaTestAccounts.createAuthorizationHeader(clientId, clientSecret));
 
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("grant_type", "password");
