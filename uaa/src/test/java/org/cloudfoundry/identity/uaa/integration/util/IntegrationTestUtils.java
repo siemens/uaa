@@ -1215,10 +1215,7 @@ public class IntegrationTestUtils {
           null,
           resource.getPreEstablishedRedirectUri(),
           null,
-          true,
-          null,
-		  null,
-		  null);
+          true);
     }
 
     public static HttpHeaders getHeaders(CookieStore cookies) {
@@ -1231,7 +1228,36 @@ public class IntegrationTestUtils {
         }
         return headers;
     }
-
+    
+    public static Map<String, String> getAuthorizationCodeTokenMap(ServerRunning serverRunning,
+            UaaTestAccounts testAccounts,
+            String clientId,
+            String clientSecret,
+            String username,
+            String password,
+            String tokenResponseType,
+            String jSessionId,
+            String redirectUri,
+            String loginHint,
+            boolean callCheckToken) throws Exception {
+    	
+    	return getAuthorizationCodeTokenMap(serverRunning,
+    										testAccounts,
+    										clientId,
+    										clientSecret,
+    										username,
+    										password,
+    										tokenResponseType,
+    										jSessionId,
+    										redirectUri,
+    										loginHint,
+    										callCheckToken,
+    										null,
+    										null,
+    										null);
+    	
+    }
+    
     public static Map<String, String> getAuthorizationCodeTokenMap(ServerRunning serverRunning,
                                                                    UaaTestAccounts testAccounts,
                                                                    String clientId,

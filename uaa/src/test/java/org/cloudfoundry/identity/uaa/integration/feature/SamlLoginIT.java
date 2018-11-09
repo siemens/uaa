@@ -979,10 +979,7 @@ public class SamlLoginIT {
                                                                                                      cookie.getValue(),
                                                                                                      zoneUrl,
                                                                                                      null,
-                                                                                                     false,
-                                                                                                     null,
-                                                                                                     null,
-                                                                                                     null);
+                                                                                                     false);
 
         webDriver.get(baseUrl + "/logout.do");
         webDriver.get(zoneUrl + "/logout.do");
@@ -1208,10 +1205,7 @@ public class SamlLoginIT {
                                                                                                      cookie.getValue(),
                                                                                                      zoneUrl,
                                                                                                      null,
-                                                                                                     false,
-                                                                                                     null,
-                                                                                                     null,
-                                                                                                     null);
+                                                                                                     false);
 
         webDriver.get(baseUrl + "/logout.do");
         webDriver.get(zoneUrl + "/logout.do");

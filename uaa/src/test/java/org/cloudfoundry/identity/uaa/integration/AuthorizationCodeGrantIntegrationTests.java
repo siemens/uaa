@@ -56,20 +56,15 @@ public class AuthorizationCodeGrantIntegrationTests {
     }
     
     @Test
-    public void testSuccessfulAuthorizationCodeFlowWithPKCE() throws Exception {
-        testAuthorizationCodeFlowWithPKCE_Internal(UaaTestAccounts.CODE_CHALLENGE,
-                											 UaaTestAccounts.CODE_CHALLENGE_METHOD_S256,
-                											 UaaTestAccounts.CODE_VERIFIER);
-        testAuthorizationCodeFlowWithPKCE_Internal(UaaTestAccounts.CODE_CHALLENGE,
-                											 UaaTestAccounts.CODE_CHALLENGE_METHOD_S256,
-                											 UaaTestAccounts.CODE_VERIFIER);
+    public void testSuccessfulAuthorizationCodeFlowWithPkceS256() throws Exception {
+        testAuthorizationCodeFlowWithPKCE_Internal(UaaTestAccounts.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256, UaaTestAccounts.CODE_VERIFIER);
+        testAuthorizationCodeFlowWithPKCE_Internal(UaaTestAccounts.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256, UaaTestAccounts.CODE_VERIFIER);
     }
     
-    @Test(expected = OAuth2Exception.class)
-    public void testFaliedAuthorizationCodeFlowWithPKCE() throws Exception {
-    	testAuthorizationCodeFlowWithPKCE_Internal(UaaTestAccounts.CODE_CHALLENGE,
-				 UaaTestAccounts.CODE_CHALLENGE_METHOD_S256,
-				 UaaTestAccounts.CODE_CHALLENGE);
+    @Test
+    public void testSuccessfulAuthorizationCodeFlowWithPkcePlain() throws Exception {
+        testAuthorizationCodeFlowWithPKCE_Internal(UaaTestAccounts.CODE_CHALLENGE, "plain", UaaTestAccounts.CODE_CHALLENGE);
+        testAuthorizationCodeFlowWithPKCE_Internal(UaaTestAccounts.CODE_CHALLENGE, "plain", UaaTestAccounts.CODE_CHALLENGE);
     }
     
     @Test

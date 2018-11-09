@@ -352,10 +352,7 @@ public class OIDCLoginIT {
             cookie.getValue(),
             baseUrl,
             null,
-            false,
-            null,
-            null,
-            null);
+            false);
 
         //validate that we have an ID token, and that it contains costCenter and manager values
         String idToken = authCodeTokenResponse.get("id_token");
@@ -419,10 +416,7 @@ public class OIDCLoginIT {
                 cookie.getValue(),
                 null,
                 null,
-                false,
-                null,
-                null,
-                null);
+                false);
 
             //validate that we have an ID token, and that it contains costCenter and manager values
             String idToken = authCodeTokenResponse.get("id_token");
