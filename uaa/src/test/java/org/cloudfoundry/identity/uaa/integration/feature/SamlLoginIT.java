@@ -970,7 +970,6 @@ public class SamlLoginIT {
 
         serverRunning.setHostName("testzone1.localhost");
         Map<String,String> authCodeTokenResponse = IntegrationTestUtils.getAuthorizationCodeTokenMap(serverRunning,
-                                                                                                     UaaTestAccounts.standard(serverRunning),
                                                                                                      clientDetails.getClientId(),
                                                                                                      clientDetails.getClientSecret(),
                                                                                                      null,
@@ -1199,7 +1198,6 @@ public class SamlLoginIT {
 
         serverRunning.setHostName(zoneId+".localhost");
         Map<String,String> authCodeTokenResponse = IntegrationTestUtils.getAuthorizationCodeTokenMap(serverRunning,
-                                                                                                     UaaTestAccounts.standard(serverRunning),
                                                                                                      clientDetails.getClientId(),
                                                                                                      clientDetails.getClientSecret(),
                                                                                                      null,
