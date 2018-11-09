@@ -1201,21 +1201,16 @@ public class IntegrationTestUtils {
                                                                    String clientSecret,
                                                                    String username,
                                                                    String password) throws Exception {
-        AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
-        resource.setClientId(clientId);
-        resource.setClientSecret(clientSecret);
 
-        return getAuthorizationCodeTokenMap(serverRunning,
-          testAccounts,
-          clientId,
-          clientSecret,
-          username,
-          password,
-          null,
-          null,
-          resource.getPreEstablishedRedirectUri(),
-          null,
-          true);
+        return getAuthorizationCodeTokenMapWithPKCE(serverRunning,
+        		testAccounts,
+        		clientId,
+        		clientSecret,
+        		username,
+        		password,
+        		null,
+        		null,
+        		null);
     }
 
     public static HttpHeaders getHeaders(CookieStore cookies) {
