@@ -315,14 +315,14 @@ public class UaaAuthorizationEndpointTest {
     public void testEmptyCodeChallengeParameter() throws Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
     	parameters.put(PkceValidationService.CODE_CHALLENGE, "");
-    	parameters = uaaAuthorizationEndpoint.pkceParameterValidation(parameters);
+    	uaaAuthorizationEndpoint.pkceParameterValidation(parameters);
     }
     
     @Test(expected = OAuth2Exception.class)
     public void testInvalidCodeChallengeParameter() throws Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
     	parameters.put(PkceValidationService.CODE_CHALLENGE, "#InvalidCodeChallenge#");
-    	parameters = uaaAuthorizationEndpoint.pkceParameterValidation(parameters);
+    	uaaAuthorizationEndpoint.pkceParameterValidation(parameters);
     }
     
     @Test(expected = OAuth2Exception.class)
@@ -330,7 +330,7 @@ public class UaaAuthorizationEndpointTest {
     	Map<String, String> parameters = new HashMap<String, String>();
     	parameters.put(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE);
     	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, "");
-    	parameters = uaaAuthorizationEndpoint.pkceParameterValidation(parameters);
+    	uaaAuthorizationEndpoint.pkceParameterValidation(parameters);
     }
     
     @Test(expected = OAuth2Exception.class)
@@ -338,7 +338,7 @@ public class UaaAuthorizationEndpointTest {
     	Map<String, String> parameters = new HashMap<String, String>();
     	parameters.put(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE);
     	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, "unsupportedMethod");
-    	parameters = uaaAuthorizationEndpoint.pkceParameterValidation(parameters);
+    	uaaAuthorizationEndpoint.pkceParameterValidation(parameters);
     }
 
     private AuthorizationRequest getAuthorizationRequest(String clientId, String redirectUri, String state,
