@@ -88,7 +88,7 @@ public class UaaTokenEndpoint extends TokenEndpoint {
      * to make the code_verifier available in: UaaTokenStore.
      * @param tokenRequestParameters
      * 				Token request parameters for validation and merge.
-     * @return tokenRequestParameters with merged code value if had code verifier.
+     * @return tokenRequestParameters with merged code value if had code verifier and code parameters.
      * @throws OAuth2Exception 
      * 				Code verifier parameter validation errors.
      */

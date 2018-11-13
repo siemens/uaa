@@ -56,17 +56,30 @@ public class AuthorizationCodeGrantIntegrationTests {
     
     @Test
     public void testSuccessfulAuthorizationCodeFlowWithPkceS256() throws Exception {
-        testAuthorizationCodeFlowWithPKCE_Internal(UaaTestAccounts.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256, UaaTestAccounts.CODE_VERIFIER);
-        testAuthorizationCodeFlowWithPKCE_Internal(UaaTestAccounts.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256, UaaTestAccounts.CODE_VERIFIER);
+        testAuthorizationCodeFlowWithPkce_Internal(UaaTestAccounts.CODE_CHALLENGE, 
+        		UaaTestAccounts.CODE_CHALLENGE_METHOD_S256, UaaTestAccounts.CODE_VERIFIER);
+        testAuthorizationCodeFlowWithPkce_Internal(UaaTestAccounts.CODE_CHALLENGE, 
+        		UaaTestAccounts.CODE_CHALLENGE_METHOD_S256, UaaTestAccounts.CODE_VERIFIER);
     }
     
     @Test
     public void testSuccessfulAuthorizationCodeFlowWithPkcePlain() throws Exception {
-        testAuthorizationCodeFlowWithPKCE_Internal(UaaTestAccounts.CODE_CHALLENGE, "plain", UaaTestAccounts.CODE_CHALLENGE);
-        testAuthorizationCodeFlowWithPKCE_Internal(UaaTestAccounts.CODE_CHALLENGE, "plain", UaaTestAccounts.CODE_CHALLENGE);
+        testAuthorizationCodeFlowWithPkce_Internal(UaaTestAccounts.CODE_CHALLENGE, "plain", UaaTestAccounts.CODE_CHALLENGE);
+        testAuthorizationCodeFlowWithPkce_Internal(UaaTestAccounts.CODE_CHALLENGE, "plain", UaaTestAccounts.CODE_CHALLENGE);
     }
     
     @Test
+    public void testPkcePlainWithWrongCodeVerifier() throws Exception {
+        testPkceWithWrongCodeVerifier(UaaTestAccounts.CODE_CHALLENGE, "plain", UaaTestAccounts.CODE_VERIFIER);
+    }
+    
+    @Test
+    public void testPkceS256WithWrongCodeVerifier() throws Exception {
+        testPkceWithWrongCodeVerifier(UaaTestAccounts.CODE_CHALLENGE,
+        		UaaTestAccounts.CODE_CHALLENGE_METHOD_S256, UaaTestAccounts.CODE_CHALLENGE);
+    }
+
+	@Test
     public void testZoneDoesNotExist() {
         ServerRunning.UriBuilder builder = serverRunning.buildUri(serverRunning.getAuthorizationUri().replace("localhost", "testzonedoesnotexist.localhost"))
                 .queryParam("response_type", "code")
@@ -124,8 +137,31 @@ public class AuthorizationCodeGrantIntegrationTests {
         assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"user_id\""));
     }
     
-    private void testAuthorizationCodeFlowWithPKCE_Internal(String codeChallenge, String codeChallengeMethod, String codeVerifier) throws Exception {
-        AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
+    private void testAuthorizationCodeFlowWithPkce_Internal(String codeChallenge, String codeChallengeMethod, String codeVerifier) throws Exception {
+        
+        ResponseEntity<Map> tokenResponse = doAuthorizeAndTokenRequest(codeChallenge, codeChallengeMethod, codeVerifier);
+        assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());
+        Map<String,String> body = tokenResponse.getBody();
+        Jwt token = JwtHelper.decode(body.get("access_token"));
+        assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"aud\""));
+        assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"user_id\""));
+        IntegrationTestUtils.callCheckToken(serverRunning,
+        		testAccounts, 
+        		body.get("access_token"),
+        		testAccounts.getDefaultAuthorizationCodeResource().getClientId(),
+        		testAccounts.getDefaultAuthorizationCodeResource().getClientSecret());
+    }
+    
+    private void testPkceWithWrongCodeVerifier(String codeChallenge, String codeChallengeMethod, String codeVerifier) throws Exception {
+    	ResponseEntity<Map> tokenResponse = doAuthorizeAndTokenRequest(codeChallenge, codeChallengeMethod, codeVerifier);
+        assertEquals(HttpStatus.BAD_REQUEST, tokenResponse.getStatusCode());
+        Map<String,String> body = tokenResponse.getBody();
+        assertTrue(body.get("error").contains("invalid_request"));
+        assertTrue(body.get("error_description").contains("Invalid authorization code"));
+	}
+    
+    private ResponseEntity<Map> doAuthorizeAndTokenRequest(String codeChallenge, String codeChallengeMethod, String codeVerifier) throws Exception {
+    	AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
         String authorizationCode = IntegrationTestUtils.getAuthorizationCode(serverRunning,
         		resource.getClientId(),
         		testAccounts.getUserName(),
@@ -133,18 +169,12 @@ public class AuthorizationCodeGrantIntegrationTests {
         		resource.getPreEstablishedRedirectUri(),
         		codeChallenge,
         		codeChallengeMethod);
-        ResponseEntity<Map> tokenResponse = IntegrationTestUtils.getTokens(serverRunning,
+        return IntegrationTestUtils.getTokens(serverRunning,
         		testAccounts, 
         		resource.getClientId(), 
         		resource.getClientSecret(), 
         		resource.getPreEstablishedRedirectUri(), 
         		codeVerifier,
         		authorizationCode);
-        assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());
-        Map<String,String> body = tokenResponse.getBody();
-        Jwt token = JwtHelper.decode(body.get("access_token"));
-        assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"aud\""));
-        assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"user_id\""));
-        IntegrationTestUtils.callCheckToken(serverRunning, testAccounts, body.get("access_token"), resource.getClientId(), resource.getClientSecret());
-    }
+	}
 }

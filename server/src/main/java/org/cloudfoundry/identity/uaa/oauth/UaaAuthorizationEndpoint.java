@@ -163,7 +163,7 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
             throw new InvalidClientException("A client id must be provided");
         }
         
-        parameters = pkceParameterValidation(parameters);
+        pkceParameterValidation(parameters);
 
         String resolvedRedirect = "";
         try {
@@ -255,11 +255,10 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
      * 		codeChallengeMethod: (Optional) Default value: plain 
      * @param parameters
      * 			Authorization request parameters
-     * @return Authorization request with validated PKCE parameters
      * @throws OAuth2Exception
      * 			In case of PKCE parameters validation errors.
      */
-    protected Map<String, String> pkceParameterValidation(Map<String, String> parameters) throws OAuth2Exception {
+    protected void pkceParameterValidation(Map<String, String> parameters) throws OAuth2Exception {
         if (parameters.containsKey(PkceValidationService.CODE_CHALLENGE)) {
         	String codeChallenge = parameters.get(PkceValidationService.CODE_CHALLENGE);
         	if (!StringUtils.hasText(codeChallenge)) {
@@ -269,16 +268,15 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
     		}
         	if (parameters.containsKey(PkceValidationService.CODE_CHALLENGE_METHOD)){
         		if (!StringUtils.hasText(parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD))) {
-        			throw new OAuth2Exception("Code challenge method parameter must not be empty if provided");
+        			throw new OAuth2Exception("Code challenge method parameter must not be empty if provided.");
         		}
         		if (!pkceValidationService.isCodeChallengeMethodSupported(parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD))) {
         			throw new OAuth2Exception("Unsupported code challenge method: "
         					+ parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD)
-        					+ ". (Supported methods: "+ pkceValidationService.getSupportedCodeChallengeMethods().toString() + " )");
+        					+ ". (Supported methods: "+ pkceValidationService.getSupportedCodeChallengeMethods().toString() + ")");
         		}
         	}
         }
-        return parameters;
     }
 
     // This method handles /oauth/authorize calls when user is not logged in and the prompt=none param is used
