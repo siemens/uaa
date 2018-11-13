@@ -32,7 +32,9 @@ import java.net.URI;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.hamcrest.CoreMatchers.*;
 
 /**
  * @author Dave Syer
@@ -156,8 +158,8 @@ public class AuthorizationCodeGrantIntegrationTests {
     	ResponseEntity<Map> tokenResponse = doAuthorizeAndTokenRequest(codeChallenge, codeChallengeMethod, codeVerifier);
         assertEquals(HttpStatus.BAD_REQUEST, tokenResponse.getStatusCode());
         Map<String,String> body = tokenResponse.getBody();
-        assertTrue(body.get("error").contains("invalid_request"));
-        assertTrue(body.get("error_description").contains("Invalid authorization code"));
+        assertThat(body.get("error"), containsString("invalid_grant"));
+        assertThat(body.get("error_description"), containsString("Invalid authorization code"));
 	}
     
     private ResponseEntity<Map> doAuthorizeAndTokenRequest(String codeChallenge, String codeChallengeMethod, String codeVerifier) throws Exception {
