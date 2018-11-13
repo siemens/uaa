@@ -26,7 +26,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.jwt.Jwt;
 import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeResourceDetails;
-import org.springframework.security.oauth2.common.exceptions.OAuth2Exception;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
@@ -125,20 +124,27 @@ public class AuthorizationCodeGrantIntegrationTests {
         assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"user_id\""));
     }
     
-    public void testAuthorizationCodeFlowWithPKCE_Internal(String codeChallenge, String codeChallengeMethod, String codeVerifier) throws Exception {
+    private void testAuthorizationCodeFlowWithPKCE_Internal(String codeChallenge, String codeChallengeMethod, String codeVerifier) throws Exception {
         AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
-
-        Map<String, String> body = IntegrationTestUtils.getAuthorizationCodeTokenMapWithPKCE(serverRunning,
-                                                                                     testAccounts,
-                                                                                     resource.getClientId(),
-                                                                                     resource.getClientSecret(),
-                                                                                     testAccounts.getUserName(),
-                                                                                     testAccounts.getPassword(),
-                                                                                     codeChallenge,
-                                                                                     codeChallengeMethod,
-                                                                                     codeVerifier);
+        String authorizationCode = IntegrationTestUtils.getAuthorizationCode(serverRunning,
+        		resource.getClientId(),
+        		testAccounts.getUserName(),
+        		testAccounts.getPassword(),
+        		resource.getPreEstablishedRedirectUri(),
+        		codeChallenge,
+        		codeChallengeMethod);
+        ResponseEntity<Map> tokenResponse = IntegrationTestUtils.getTokens(serverRunning,
+        		testAccounts, 
+        		resource.getClientId(), 
+        		resource.getClientSecret(), 
+        		resource.getPreEstablishedRedirectUri(), 
+        		codeVerifier,
+        		authorizationCode);
+        assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());
+        Map<String,String> body = tokenResponse.getBody();
         Jwt token = JwtHelper.decode(body.get("access_token"));
         assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"aud\""));
         assertTrue("Wrong claims: " + token.getClaims(), token.getClaims().contains("\"user_id\""));
+        IntegrationTestUtils.callCheckToken(serverRunning, testAccounts, body.get("access_token"), resource.getClientId(), resource.getClientSecret());
     }
 }
