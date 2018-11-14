@@ -1,3 +1,6 @@
+/********************************************************************
+ * Copyright (C) 2018 Siemens AG
+ *******************************************************************/
 package org.cloudfoundry.identity.uaa.oauth.pkce;
 
 import static org.junit.Assert.assertEquals;
@@ -14,6 +17,11 @@ import org.cloudfoundry.identity.uaa.oauth.pkce.methods.S256CodeChallengeMethod;
 import org.junit.Before;
 import org.junit.Test;
 
+/**
+ * 
+ * @author Zoltan Maradics
+ *
+ */
 public class PkceValidationServiceTest {
 
 	private PkceValidationService pkceValidationService;
@@ -120,7 +128,7 @@ public class PkceValidationServiceTest {
 		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE,
 				validPlainCodeChallengeOrCodeVerifierParameter1);
 		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, "");
-		assertTrue(pkceValidationService.evaluateOptionalPkceParameters(authorizeRequestParameters,
+		assertFalse(pkceValidationService.evaluateOptionalPkceParameters(authorizeRequestParameters,
 				validPlainCodeChallengeOrCodeVerifierParameter1));
 	}
 

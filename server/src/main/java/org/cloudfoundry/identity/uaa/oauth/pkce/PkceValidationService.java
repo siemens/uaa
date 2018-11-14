@@ -1,3 +1,6 @@
+/********************************************************************
+ * Copyright (C) 2018 Siemens AG
+ *******************************************************************/
 package org.cloudfoundry.identity.uaa.oauth.pkce;
 
 import java.util.Collections;
@@ -9,7 +12,7 @@ import java.util.regex.Pattern;
 
 /**
  * PKCE Validation Service.
- *  - Implement and store Plain code challenge method by default.
+ *  - Initialise and store Plain code challenge method by default.
  *  - Can add further code challenge method implementations.
  *  - Validate code challenge parameter.
  *  - Validate code verifier parameter.
@@ -77,18 +80,19 @@ public class PkceValidationService {
 		} else if (requestParameters.containsKey(CODE_CHALLENGE) && !codeVerifier.isEmpty()) {
 			// There are code challenge and code verifier
 			String codeChallenge = requestParameters.get(CODE_CHALLENGE);
-			if (requestParameters.containsKey(CODE_CHALLENGE_METHOD)
-					&& !requestParameters.get(CODE_CHALLENGE_METHOD).isEmpty()) {
-				// Has code challenge method and not empty
-				if (isCodeChallengeMethodSupported(requestParameters.get(CODE_CHALLENGE_METHOD))) {
+			if (requestParameters.containsKey(CODE_CHALLENGE_METHOD)) {
+				// Has code challenge method
+				if (!requestParameters.get(CODE_CHALLENGE_METHOD).isEmpty() 
+						&& isCodeChallengeMethodSupported(requestParameters.get(CODE_CHALLENGE_METHOD))) {
+					// Not empty and Supported Code challenge method 
 					return codeChallengeMethods.get(requestParameters.get(CODE_CHALLENGE_METHOD))
 							.isCodeVerifierValid(codeVerifier, codeChallenge);
 				} else {
-					// Not supported code challenge method
+					// Not supported code challenge method or empty
 					return false;
 				}
 			}
-			// No code challenge method or empty => use default: plain
+			// No code challenge method => use default: plain
 			return codeChallengeMethods.get("plain").isCodeVerifierValid(codeVerifier, codeChallenge);
 		}
 		return false;

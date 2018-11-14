@@ -34,11 +34,12 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.containsString;
 
 /**
  * @author Dave Syer
  * @author Luke Taylor
+ * @author Zoltan Maradics
  */
 public class AuthorizationCodeGrantIntegrationTests {
 

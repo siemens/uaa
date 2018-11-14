@@ -1,3 +1,6 @@
+/********************************************************************
+ * Copyright (C) 2018 Siemens AG
+ *******************************************************************/
 package org.cloudfoundry.identity.uaa.oauth.pkce.methods;
 
 import static org.junit.Assert.assertFalse;
@@ -6,6 +9,11 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 
+/**
+ * 
+ * @author Zoltan Maradics
+ *
+ */
 public class S256CodeChallengeMethodTest {
 	
 	private S256CodeChallengeMethod s256CodeChallengeMethod;

@@ -1162,7 +1162,7 @@ public class IntegrationTestUtils {
         return getAuthorizationCodeTokenMap(serverRunning, testAccounts, clientId, clientSecret, username, password)
           .get("access_token");
     }
-    
+
     public static Map<String, String> getAuthorizationCodeTokenMap(ServerRunning serverRunning,
                                                                    UaaTestAccounts testAccounts,
                                                                    String clientId,
@@ -1327,7 +1327,7 @@ public class IntegrationTestUtils {
         assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());
         assertNotNull(tokenResponse.getBody().get("iss"));
     }
-    
+
     public static Map<String, String> getAuthorizationCodeTokenMap(ServerRunning serverRunning,
                                                                    UaaTestAccounts testAccounts,
                                                                    String clientId,
