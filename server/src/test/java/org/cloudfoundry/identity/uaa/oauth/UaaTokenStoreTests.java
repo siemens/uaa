@@ -19,9 +19,10 @@ import org.cloudfoundry.identity.uaa.authentication.UaaAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.oauth.UaaTokenStore;
-import org.cloudfoundry.identity.uaa.oauth.pkce.CodeChallengeMethod;
+import org.cloudfoundry.identity.uaa.oauth.pkce.CodeChallengeValidator;
 import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
-import org.cloudfoundry.identity.uaa.oauth.pkce.methods.S256CodeChallengeMethod;
+import org.cloudfoundry.identity.uaa.oauth.pkce.validators.PlainCodeChallengeValidator;
+import org.cloudfoundry.identity.uaa.oauth.pkce.validators.S256CodeChallengeValidator;
 import org.cloudfoundry.identity.uaa.test.JdbcTestBase;
 import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
 import org.cloudfoundry.identity.uaa.util.UaaStringUtils;
@@ -92,9 +93,11 @@ public class UaaTokenStoreTests extends JdbcTestBase {
 
         List<GrantedAuthority> userAuthorities = Arrays.<GrantedAuthority>asList(new SimpleGrantedAuthority("openid"));
         
-        S256CodeChallengeMethod s256CodeChallengeMethod = new S256CodeChallengeMethod();
-        Map<String,CodeChallengeMethod> codeChallengeMethods = new HashMap<String,CodeChallengeMethod>();
-        codeChallengeMethods.put(s256CodeChallengeMethod.getCodeChallengeMethodId(), s256CodeChallengeMethod);
+        S256CodeChallengeValidator s256CodeChallengeMethod = new S256CodeChallengeValidator();
+        PlainCodeChallengeValidator plainCodeChallengeValidator = new PlainCodeChallengeValidator();
+        Map<String,CodeChallengeValidator> codeChallengeMethods = new HashMap<String,CodeChallengeValidator>();
+        codeChallengeMethods.put(s256CodeChallengeMethod.getCodeChallengeMethod(), s256CodeChallengeMethod);
+        codeChallengeMethods.put(plainCodeChallengeValidator.getCodeChallengeMethod(), plainCodeChallengeValidator);
         pkceValidationService = new PkceValidationService(codeChallengeMethods);
         store = new UaaTokenStore(dataSource, pkceValidationService);
         legacyCodeServices = new JdbcAuthorizationCodeServices(dataSource);
@@ -165,13 +168,13 @@ public class UaaTokenStoreTests extends JdbcTestBase {
     @Test
     public void test_ConsumeCodeWithPkceMethodPlain() throws  Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
-    	parameters.put(PkceValidationService.CODE_CHALLENGE, "Test");
+    	parameters.put(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE);
     	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, "plain");
     	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
         OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
     	String code = store.createAuthorizationCode(oAuth2Authentication);
         assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(1));
-        OAuth2Authentication authentication = store.consumeAuthorizationCode(code + " " + "Test");
+        OAuth2Authentication authentication = store.consumeAuthorizationCode(code + " " + UaaTestAccounts.CODE_CHALLENGE);
         assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(0));
         assertNotNull(authentication);
     }
@@ -204,6 +207,20 @@ public class UaaTokenStoreTests extends JdbcTestBase {
     }
     
     @Test(expected = InvalidGrantException.class)
+    public void test_ConsumeCodeWithPkceMethodPlainWrongCodeVerifier() throws  Exception {
+    	Map<String, String> parameters = new HashMap<String, String>();
+    	parameters.put(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE);
+    	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, "plain");
+    	OAuth2Request oAuth2Request = new OAuth2Request(parameters, "",Collections.emptyList(),true,Collections.emptySet(),Collections.emptySet(),"",Collections.emptySet(),Collections.emptyMap());
+        OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, uaaAuthentication);
+    	String code = store.createAuthorizationCode(oAuth2Authentication);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(1));
+        OAuth2Authentication authentication = store.consumeAuthorizationCode(code + " " + UaaTestAccounts.CODE_VERIFIER);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM oauth_code WHERE code = ?", new Object[] {code}, Integer.class), is(0));
+        assertNotNull(authentication);
+    }
+    
+    @Test(expected = InvalidGrantException.class)
     public void test_ConsumeCodeWithCodeVerifierWithoutStoredCodeChallenge() throws  Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
     	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
@@ -216,7 +233,7 @@ public class UaaTokenStoreTests extends JdbcTestBase {
     }
     
     @Test(expected = InvalidGrantException.class)
-    public void test_ConsumeCodeWithoutCodeVerifierWithCodeChallenge() throws  Exception {
+    public void test_ConsumeCodeWithoutCodeVerifierWithStoredCodeChallenge() throws  Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
     	parameters.put(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE);
     	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);

@@ -1,7 +1,9 @@
-/********************************************************************
+/*
+ *******************************************************************
  * Copyright (C) 2018 Siemens AG
- *******************************************************************/
-package org.cloudfoundry.identity.uaa.oauth.pkce.methods;
+ *******************************************************************
+ */
+package org.cloudfoundry.identity.uaa.oauth.pkce.validators;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -14,16 +16,16 @@ import org.junit.Test;
  * @author Zoltan Maradics
  *
  */
-public class S256CodeChallengeMethodTest {
+public class S256CodeChallengeValidatorTest {
 	
-	private S256CodeChallengeMethod s256CodeChallengeMethod;
+	private S256CodeChallengeValidator s256CodeChallengeMethod;
 	
 	private final String validCodeChallenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
 	private final String validCodeVerifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 	
 	@Before
 	public void createS256CodeChallengeMethod() throws Exception {
-		s256CodeChallengeMethod = new S256CodeChallengeMethod();
+		s256CodeChallengeMethod = new S256CodeChallengeValidator();
 	}
 	
 	@Test

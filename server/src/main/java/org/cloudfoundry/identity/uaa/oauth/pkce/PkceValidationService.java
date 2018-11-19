@@ -1,10 +1,11 @@
-/********************************************************************
+/*
+ *******************************************************************
  * Copyright (C) 2018 Siemens AG
- *******************************************************************/
+ *******************************************************************
+ */
 package org.cloudfoundry.identity.uaa.oauth.pkce;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -12,11 +13,9 @@ import java.util.regex.Pattern;
 
 /**
  * PKCE Validation Service.
- *  - Initialise and store Plain code challenge method by default.
- *  - Can add further code challenge method implementations.
- *  - Validate code challenge parameter.
- *  - Validate code verifier parameter.
- *  - Validate code challenge method parameter.
+ *  - Validate Code Verifier parameter.
+ *  - Validate Code Challenge parameter.
+ *  - Validate Code Challenge Method parameter.
  *  - List supported code challenge methods.
  *  - Compare code verifier and code challenge based on code challenge method.
  *
@@ -25,8 +24,9 @@ import java.util.regex.Pattern;
 
 public class PkceValidationService {
 
-	/* Regular expression match with any string:
-	 *  - Length between 43 and 128 
+	/*
+	 * Regular expression match with any string:
+	 *  - Length between 43 and 128
 	 *  - Contains only [A-Z],[a-z],[0-9],_,.,-,~ characters
 	 */
 	private static final String REGULAR_EXPRESSION_FOR_VALIDATION = "^[\\w\\.\\-\\~]{43,128}$";
@@ -35,105 +35,138 @@ public class PkceValidationService {
 	public static final String CODE_CHALLENGE_METHOD = "code_challenge_method";
 	public static final String CODE_VERIFIER = "code_verifier";
 
-	private final Map<String, CodeChallengeMethod> codeChallengeMethods;
+	private Map<String, CodeChallengeValidator> codeChallengeValidators;
 
-	/**
-	 * Initialise PCKE Validation service with the list of supported Code Challenge
-	 * Methods. Plain code challenge method added by default.
-	 * 
-	 * @param codeChallengeMethodId
-	 *            List of supported code challenge methods
-	 */
-	public PkceValidationService(Map<String, CodeChallengeMethod> codeChallengeMethods) {
-		this.codeChallengeMethods = new HashMap<String, CodeChallengeMethod>(codeChallengeMethods);
-		PlainCodeChallengeMethod plainCodeChallengeMethod = new PlainCodeChallengeMethod();
-		this.codeChallengeMethods.put(plainCodeChallengeMethod.getCodeChallengeMethodId(), plainCodeChallengeMethod);
+	public PkceValidationService(Map<String, CodeChallengeValidator> codeChallengeValidators) {
+		if (codeChallengeValidators == null) {
+			this.codeChallengeValidators = Collections.emptyMap();
+		}
+		this.codeChallengeValidators = codeChallengeValidators;
 	}
 
-	/**
-	 * Initialise PCKE Validation service with plain code challenge method by
-	 * default.
-	 */
 	public PkceValidationService() {
 		this(Collections.emptyMap());
 	}
 
 	/**
-	 * Evaluate PKCE parameters from Authorize request and code verifier from Token
-	 * request. In case of code challenge method parameter is missing or empty then
-	 * the default code challenge method will be used.
-	 * 
-	 * @param requestParameters
-	 *            Stored Authorization request parameters (maybe with
-	 *            "code_challenge" and "code_challenge_method").
-	 * @param codeVerifier
-	 *            Code verifier parameter from token request.
-	 * @return true when (1) the requests do not make use of PKCE or when (2) the
-	 *         requests make use of PKCE and the parameters have been successfully
-	 *         evaluated. false when (1) one of the code_verifier or code_challenge
-	 *         are missing or when (2) code_verifier is invalid.
+	 * Get all supported code challenge methods.
+	 * @return Set of supported code challenge methods.
 	 */
-	public boolean evaluateOptionalPkceParameters(Map<String, String> requestParameters, String codeVerifier) {
-		if (!requestParameters.containsKey(CODE_CHALLENGE) && codeVerifier.isEmpty()) {
-			// No code challenge and code verifier (Authorization Code Grant without PKCE)
+	public Set<String> getSupportedCodeChallengeMethods() {
+		return this.codeChallengeValidators.keySet();
+	}
+
+	/**
+	 * Check code challenge method is supported or not.
+	 * @param codeChallengeMethod
+	 *            Code challenge method parameter.
+	 * @return true if Code challenge method in the list of supported code challenge validators.
+	 *         false otherwise.
+	 */
+	public boolean isCodeChallengeMethodSupported(String codeChallengeMethod) {
+		if (codeChallengeMethod == null) {
+			return false;
+		}
+		return this.codeChallengeValidators.containsKey(codeChallengeMethod);
+	}
+
+	/**
+	 * Evaluate PKCE parameters.
+	 * 
+	 * @param codeChallenge
+	 *            Code challenge parameter.
+	 * @param codeChallengeMethod
+	 *            Code challenge method parameter e.g: "plain", "S256",...
+	 * @param codeVerifier
+	 *            Code verifier parameter.
+	 * @return true when the parameters have been successfully evaluated. 
+	 *         false when code_verifier is invalid.
+	 * @throws PkceValidationException
+	 *         In case of (1) Invalid code challenge parameter.
+	 *                    (2) Unsupported code challenge method parameter.
+	 *                    (3) Invalid code verifier parameter.
+	 */
+	public boolean evaluatePkceParameters(String codeChallenge, String codeChallengeMethod, String codeVerifier)
+			throws PkceValidationException {
+		if (!isCodeChallengeParameterValid(codeChallenge)) {
+			throw new PkceValidationException("Invalid code challenge parameter");
+		} else if (!isCodeChallengeMethodSupported(codeChallengeMethod)) {
+			throw new PkceValidationException("Unsupported code challenge method parameter");
+		} else if (!isCodeVerifierParameterValid(codeVerifier)) {
+			throw new PkceValidationException("Invalid code verifier parameter");
+		}
+		return codeChallengeValidators.get(codeChallengeMethod).isCodeVerifierValid(codeVerifier, codeChallenge);
+	}
+	
+	/**
+	 * Evaluate PKCE parameters from Authorization request parameters and Code Verifier from Token request.
+	 * @param requestParameters
+	 *        Authorization request parameters.
+	 * @param codeVerifier
+	 *        Code verifier from Token request.
+	 * @return True: (1) in case of Authorization Code Grand without PKCE
+	 *               (2) in case of Authorization Code Grand with PKCE and code verifier
+	 *                   matched with code challenge based on code challenge method.
+	 *         False: in case of Authorization Code Grand with PKCE and code verifier
+	 *                does not match with code challenge based on code challenge method
+	 * @throws PkceValidationException
+	 *         (1) Missing Code Challenge parameter but has Code Verifier parameter.
+	 *         (2) Missing Code Verifier parameter but has Code Challenge parameter.
+	 *         (3) Invalid Code Challenge parameter.
+	 *         (4) Invalid Code Verifier parameter.
+	 *         (5) Unsupported Code Challenge Method.
+	 */
+	public boolean evaluateOptionalPkceParameters(Map<String, String> requestParameters, String codeVerifier) throws PkceValidationException {
+		if (!hasPkceParameters(requestParameters, codeVerifier)) {
 			return true;
-		} else if (requestParameters.containsKey(CODE_CHALLENGE) && !codeVerifier.isEmpty()) {
-			// There are code challenge and code verifier
-			String codeChallenge = requestParameters.get(CODE_CHALLENGE);
-			if (requestParameters.containsKey(CODE_CHALLENGE_METHOD)) {
-				// Has code challenge method
-				if (!requestParameters.get(CODE_CHALLENGE_METHOD).isEmpty() 
-						&& isCodeChallengeMethodSupported(requestParameters.get(CODE_CHALLENGE_METHOD))) {
-					// Not empty and Supported Code challenge method 
-					return codeChallengeMethods.get(requestParameters.get(CODE_CHALLENGE_METHOD))
-							.isCodeVerifierValid(codeVerifier, codeChallenge);
-				} else {
-					// Not supported code challenge method or empty
-					return false;
-				}
+		}
+		String codeChallengeMethod = extractCodeChallengeMethod(requestParameters);
+		return evaluatePkceParameters(requestParameters.get(CODE_CHALLENGE), codeChallengeMethod, codeVerifier);
+	}
+	
+	/**
+	 * Check Code Challenge and Code Verifier parameters for PKCE 
+	 * @param requestParameters
+	 *        Authorization request parameters.
+	 * @param codeVerifier
+	 *        Code Verifier from Token request.
+	 * @return True: There are Code Challenge and Code Verifier parameters with not null value.
+	 *         False: There is no PKCE parameters.
+	 * @throws PkceValidationException
+	 *         (1) Missing Code Verifier parameter but has Code Challenge parameter.
+	 *         (2) Missing Code Challenge parameter but has Code Verifier parameter.
+	 */
+	protected static boolean hasPkceParameters(Map<String, String> requestParameters, String codeVerifier) throws PkceValidationException{
+		String codeChallenge = requestParameters.get(CODE_CHALLENGE);
+		if (codeChallenge != null) {
+			if (codeVerifier != null && !codeVerifier.isEmpty()) {
+				return true;
+			}else {
+				throw new PkceValidationException("Missing Code Verifier parameter but has Code Challenge parameter");
 			}
-			// No code challenge method => use default: plain
-			return codeChallengeMethods.get("plain").isCodeVerifierValid(codeVerifier, codeChallenge);
+		}else if (codeVerifier != null && !codeVerifier.isEmpty()){
+			throw new PkceValidationException("Missing Code Challenge parameter but has Code Verifier parameter");
 		}
 		return false;
 	}
-
+	
 	/**
-	 * Possibility to add further supported code challenge method to the existing
-	 * supported code challenge methods. Same @id will override the existing one.
-	 * 
-	 * @param id
-	 *            Unique id of code challenge method
-	 * @param codeChallengeMethod
-	 *            Further supported code challenge method
+	 * Extract code challenge method from request.
+	 * @param requestParameters
+	 *        Authorization request parameters.
+	 * @return
+	 * 		  If there is no code challenge method in authorization request then return: "plain"
+	 *        Otherwise return the value of code challenge method parameter.
 	 */
-	public void addcodeChallengeMethod(String id, CodeChallengeMethod codeChallengeMethod) {
+	protected static String extractCodeChallengeMethod(Map<String, String> requestParameters) {
+		String codeChallengeMethod = requestParameters.get(CODE_CHALLENGE_METHOD);
 		if (codeChallengeMethod == null) {
-			throw new IllegalArgumentException("Code Challenge Method is null");
+			return "plain";
+		}else {
+			return codeChallengeMethod;
 		}
-		this.codeChallengeMethods.put(id, codeChallengeMethod);
 	}
-
-	/**
-	 * Getter for supported code challenge methods
-	 * 
-	 * @return Set of supported code challenge methods
-	 */
-	public Set<String> getSupportedCodeChallengeMethods() {
-		return codeChallengeMethods.keySet();
-	}
-
-	/**
-	 * Compare code challenge method parameter with supported code challenge methods
-	 * 
-	 * @param codeChallengeMethod
-	 *            Code Challenge Method from authorize request
-	 * @return true or false based on compare
-	 */
-	public boolean isCodeChallengeMethodSupported(String codeChallengeMethod) {
-		return getSupportedCodeChallengeMethods().contains(codeChallengeMethod);
-	}
-
+	
 	/**
 	 * Validate the code verifier parameter based on RFC recommendations.
 	 * 
@@ -170,33 +203,6 @@ public class PkceValidationService {
 		}
 		final Pattern pattern = Pattern.compile(REGULAR_EXPRESSION_FOR_VALIDATION);
 		final Matcher matcher = pattern.matcher(parameter);
-
 		return matcher.matches();
 	}
-
-}
-
-/**
- * Plain code challenge method implementation.
- * 
- * @author Zoltan Maradics
- *
- */
-class PlainCodeChallengeMethod implements CodeChallengeMethod {
-
-	private final String codeChallengeMethodId = "plain";
-
-	public PlainCodeChallengeMethod() {
-	}
-
-	@Override
-	public boolean isCodeVerifierValid(String codeVerifier, String codeChallenge) {
-		return codeChallenge.contentEquals(codeVerifier);
-	}
-
-	@Override
-	public String getCodeChallengeMethodId() {
-		return codeChallengeMethodId;
-	}
-
 }

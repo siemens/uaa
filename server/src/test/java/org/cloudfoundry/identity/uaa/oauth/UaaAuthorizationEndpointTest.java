@@ -34,9 +34,11 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
 
 public class UaaAuthorizationEndpointTest {
 
@@ -66,6 +68,8 @@ public class UaaAuthorizationEndpointTest {
         when(openIdSessionStateCalculator.calculate("userid", null, "http://example.com")).thenReturn("opbshash");
         when(authorizationCodeServices.createAuthorizationCode(any(OAuth2Authentication.class))).thenReturn("code");
         when(pkceValidationService.getSupportedCodeChallengeMethods()).thenReturn(new HashSet<String>(Arrays.asList("S256", "plain")));
+        when(pkceValidationService.isCodeChallengeMethodSupported(eq("plain"))).thenReturn(true);
+        when(pkceValidationService.isCodeChallengeMethodSupported(eq("S256"))).thenReturn(true);
     }
 
 
@@ -310,27 +314,12 @@ public class UaaAuthorizationEndpointTest {
         assertThat(view, instanceOf(RedirectView.class));
         assertThat(((RedirectView)view).getUrl(), containsString("error=invalid_scope"));
     }
-    
-    @Test(expected = OAuth2Exception.class)
-    public void testEmptyCodeChallengeParameter() throws Exception {
-    	Map<String, String> parameters = new HashMap<String, String>();
-    	parameters.put(PkceValidationService.CODE_CHALLENGE, "");
-    	uaaAuthorizationEndpoint.pkceParameterValidation(parameters);
-    }
-    
+
     @Test(expected = OAuth2Exception.class)
     public void testInvalidCodeChallengeParameter() throws Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
     	parameters.put(PkceValidationService.CODE_CHALLENGE, "#InvalidCodeChallenge#");
-    	uaaAuthorizationEndpoint.pkceParameterValidation(parameters);
-    }
-    
-    @Test(expected = OAuth2Exception.class)
-    public void testEmptyCodeChallengeMethodParameter() throws Exception {
-    	Map<String, String> parameters = new HashMap<String, String>();
-    	parameters.put(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE);
-    	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, "");
-    	uaaAuthorizationEndpoint.pkceParameterValidation(parameters);
+    	uaaAuthorizationEndpoint.validateAuthorizationRequestPkceParameters(parameters);
     }
     
     @Test(expected = OAuth2Exception.class)
@@ -338,7 +327,7 @@ public class UaaAuthorizationEndpointTest {
     	Map<String, String> parameters = new HashMap<String, String>();
     	parameters.put(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE);
     	parameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, "unsupportedMethod");
-    	uaaAuthorizationEndpoint.pkceParameterValidation(parameters);
+    	uaaAuthorizationEndpoint.validateAuthorizationRequestPkceParameters(parameters);
     }
 
     private AuthorizationRequest getAuthorizationRequest(String clientId, String redirectUri, String state,

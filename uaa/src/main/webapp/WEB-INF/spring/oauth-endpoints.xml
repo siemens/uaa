@@ -454,10 +454,12 @@
     <!-- End -->
     
 	<!-- PKCE -->
-    <bean id="s256CodeChallengeMethod" class="org.cloudfoundry.identity.uaa.oauth.pkce.methods.S256CodeChallengeMethod"/>
+    <bean id="s256CodeChallengeValidator" class="org.cloudfoundry.identity.uaa.oauth.pkce.validators.S256CodeChallengeValidator"/>
+    <bean id="plainCodeChallengeValidator" class="org.cloudfoundry.identity.uaa.oauth.pkce.validators.PlainCodeChallengeValidator"/>
     
     <util:map id="codeChallengeMethods" map-class="java.util.HashMap">
-        <entry key="S256" value-ref="s256CodeChallengeMethod"/>
+        <entry key="S256" value-ref="s256CodeChallengeValidator"/>
+        <entry key="plain" value-ref="plainCodeChallengeValidator"/>
     </util:map>
     
     <bean id="pkceValidationServices" class="org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService">

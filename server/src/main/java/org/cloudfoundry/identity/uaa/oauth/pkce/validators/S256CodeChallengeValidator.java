@@ -1,14 +1,16 @@
-/********************************************************************
+/*
+ *******************************************************************
  * Copyright (C) 2018 Siemens AG
- *******************************************************************/
-package org.cloudfoundry.identity.uaa.oauth.pkce.methods;
+ *******************************************************************
+ */
+package org.cloudfoundry.identity.uaa.oauth.pkce.validators;
 
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 import org.apache.commons.codec.binary.Base64;
-import org.cloudfoundry.identity.uaa.oauth.pkce.CodeChallengeMethod;
+import org.cloudfoundry.identity.uaa.oauth.pkce.CodeChallengeValidator;
 
 /**
  * SHA-256 code challenge method implementation.
@@ -16,11 +18,11 @@ import org.cloudfoundry.identity.uaa.oauth.pkce.CodeChallengeMethod;
  * @author Zoltan Maradics
  *
  */
-public class S256CodeChallengeMethod implements CodeChallengeMethod {
+public class S256CodeChallengeValidator implements CodeChallengeValidator {
 
-	private final String codeChallengeMethodId = "S256";
+	private final String codeChallengeMethod = "S256";
 
-	public S256CodeChallengeMethod() {
+	public S256CodeChallengeValidator() {
 	}
 
 	@Override
@@ -41,8 +43,7 @@ public class S256CodeChallengeMethod implements CodeChallengeMethod {
 	}
 
 	@Override
-	public String getCodeChallengeMethodId() {
-		return codeChallengeMethodId;
+	public String getCodeChallengeMethod() {
+		return codeChallengeMethod;
 	}
-
 }

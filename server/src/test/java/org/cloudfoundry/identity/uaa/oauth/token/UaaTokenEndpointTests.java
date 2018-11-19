@@ -115,7 +115,6 @@ public class UaaTokenEndpointTests {
         }
     }
 
-
     @Test(expected = HttpRequestMethodNotSupportedException.class)
     public void call_to_get_always_throws_override_method() throws Exception {
         UaaTokenEndpoint endpoint = new UaaTokenEndpoint();
@@ -130,19 +129,27 @@ public class UaaTokenEndpointTests {
     }
     
     @Test(expected = OAuth2Exception.class)
-    public void testEmptyCodeVerifierParameter() throws Exception {
-    	Map<String, String> parameters = new HashMap<String, String>();
-    	parameters.put("code", "TestAuthorizationCode");
-    	parameters.put(PkceValidationService.CODE_VERIFIER, "");
-    	parameters = endpoint.mergeAuthorizationCodeWithCodeVerifier(parameters);
-    }
-    
-    @Test(expected = OAuth2Exception.class)
-    public void testInvalidCodeVerifierParameter() throws Exception {
+    public void testMergeAuthCodeWithInvalidCodeVerifierParameter() throws Exception {
     	Map<String, String> parameters = new HashMap<String, String>();
     	parameters.put("code", "TestAuthorizationCode");
     	parameters.put(PkceValidationService.CODE_VERIFIER, "#InvalidCodeVerifier#");
     	parameters = endpoint.mergeAuthorizationCodeWithCodeVerifier(parameters);
+    }
+    
+    @Test(expected = OAuth2Exception.class)
+    public void testMergeAuthCodeWithInvalidCodeParameter() throws Exception {
+    	Map<String, String> parameters = new HashMap<String, String>();
+    	parameters.put("code", "Test AuthorizationCode"); // with blank
+    	parameters.put(PkceValidationService.CODE_VERIFIER, UaaTestAccounts.CODE_VERIFIER);
+    	parameters = endpoint.mergeAuthorizationCodeWithCodeVerifier(parameters);
+    }
+    
+    public void testMergeAuthCodeWithEmptyCodeParameter() throws Exception {
+    	Map<String, String> parameters = new HashMap<String, String>();
+    	parameters.put("code", "");
+    	parameters.put(PkceValidationService.CODE_VERIFIER, UaaTestAccounts.CODE_VERIFIER);
+    	parameters = endpoint.mergeAuthorizationCodeWithCodeVerifier(parameters);
+    	assertTrue(parameters.get("code").equalsIgnoreCase(""));
     }
     
     @Test

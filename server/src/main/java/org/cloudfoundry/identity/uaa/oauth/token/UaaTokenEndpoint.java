@@ -12,6 +12,11 @@
  *     subcomponent's license, as noted in the LICENSE file.
  * ****************************************************************************
  */
+/*
+ * ****************************************************************************
+ *     Copyright (C) 2018 Siemens AG - PKCE related changes only.
+ * ****************************************************************************
+ */
 
 package org.cloudfoundry.identity.uaa.oauth.token;
 
@@ -23,7 +28,6 @@ import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.common.exceptions.OAuth2Exception;
 import org.springframework.security.oauth2.provider.endpoint.TokenEndpoint;
 import org.springframework.stereotype.Controller;
-import org.springframework.util.StringUtils;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -83,21 +87,43 @@ public class UaaTokenEndpoint extends TokenEndpoint {
         return postAccessToken(principal, parameters);
     }
     /**
-     * In case of PKCE (code_verifier parameter present), the code parameter in request
-     * is modified to be build up as "code" = "code" + " " + "code_verifier",
-     * to make the code_verifier available in: UaaTokenStore.
+     * In case the token request contains a code verifier (making use of PKCE),
+     * the code verifier needs to be made available to UaaTokenStore,
+     * which handles the validation of the code verifier
+     * (by comparing it to the code challange provided in the authorization request).
+     * 
+     * As Spring Security OAuth libs do NOT support PKCE as of now, the following work around is implemented 
+     * to make the code verifier available in the UaaTokenStore:
+     * 
+     * If token request contains a code_verifier (and a code), then the "code" parameter handed over to the Spring Security OAuth libs
+     * is an artifical parameter made up as "code" + " " + "code_verifier" (using " " (blank) as separator). 
+     * The UaaTokenStore was modified to deconstruct the artifical code parameter to "code" and "code_verifier" in case it contains a blank.
+     * 
+     * Assumptions: 
+     *  - Code parameter is opaque to Spring Security OAuth libs on the way to hand over the parameter to UaaTokenStore; 
+     *  - the real "code" does not contain blanks.
+     * 
+     * 
      * @param tokenRequestParameters
      * 				Token request parameters for validation and merge.
      * @return tokenRequestParameters with merged code value if had code verifier and code parameters.
      * @throws OAuth2Exception 
      * 				Code verifier parameter validation errors.
      */
-    protected Map<String, String> mergeAuthorizationCodeWithCodeVerifier(Map<String, String> tokenRequestParameters) throws OAuth2Exception{
-        if (tokenRequestParameters.containsKey(PkceValidationService.CODE_VERIFIER) && tokenRequestParameters.containsKey("code")) {
-        	String codeVerifier = tokenRequestParameters.get(PkceValidationService.CODE_VERIFIER);
-        	if (!StringUtils.hasText(codeVerifier)) {
-    			throw new OAuth2Exception("Code verifier parameter must not be empty if provided.");
-    		}else if(!PkceValidationService.isCodeVerifierParameterValid(codeVerifier)) {
+    protected Map<String, String> mergeAuthorizationCodeWithCodeVerifier(Map<String, String> tokenRequestParameters) {
+    	String code = tokenRequestParameters.get("code");
+    	/* Need to check "code" parameter does not empty, otherwise it could 
+		 * occurred to send "code_verifier" without "code" parameter and
+		 * the response is "Invalid Authorization code" instead of "Missing code parameter"  
+		 */
+    	if(code == null || code.isEmpty()) {
+    		return tokenRequestParameters;
+    	}else if (tokenRequestParameters.get("code").contains(" ")) {
+    		throw new OAuth2Exception("Unsupported Authorization Code: Contains blank character");
+    	}
+    	String codeVerifier = tokenRequestParameters.get(PkceValidationService.CODE_VERIFIER);
+    	if (codeVerifier != null ) {
+    		if(!PkceValidationService.isCodeVerifierParameterValid(codeVerifier)) {
     			throw new OAuth2Exception("Code verifier length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters.");
     		}
         	tokenRequestParameters.put("code", tokenRequestParameters.get("code")+" "+tokenRequestParameters.get(PkceValidationService.CODE_VERIFIER));

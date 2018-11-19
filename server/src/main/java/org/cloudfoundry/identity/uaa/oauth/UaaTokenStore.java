@@ -11,7 +11,11 @@
  *      subcomponent's license, as noted in the LICENSE file.
  * *****************************************************************************
  */
-
+/*
+ * ****************************************************************************
+ *     Copyright (C) 2018 Siemens AG - PKCE related changes only.
+ * ****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.oauth;
 
 
@@ -21,6 +25,7 @@ import org.apache.commons.logging.LogFactory;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
+import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationException;
 import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.util.UaaStringUtils;
@@ -129,7 +134,6 @@ public class UaaTokenStore implements AuthorizationCodeServices {
     public OAuth2Authentication consumeAuthorizationCode(String code) throws InvalidGrantException {
         performExpirationClean();
         JdbcTemplate template = new JdbcTemplate(dataSource);
-        
         /* 
          * In case the request makes use of PKCE, the code parameter has been build up as "code"="code_value"+" "+"code_verifier"
          * @see: UaaTokenEndpoint
@@ -145,13 +149,11 @@ public class UaaTokenStore implements AuthorizationCodeServices {
             TokenCode tokenCode = (TokenCode) template.queryForObject(SQL_SELECT_STATEMENT, rowMapper, code);
             if (tokenCode != null) {
             	OAuth2Authentication oAuth2Authentication = null;
-            	
             	if (tokenCode.getExpiresAt() == 0) {
             		oAuth2Authentication = SerializationUtils.deserialize(tokenCode.getAuthentication());
             	}else {
             		oAuth2Authentication = deserializeOauth2Authentication(tokenCode.getAuthentication());
             	}
-
             	if (pkceValidationService.evaluateOptionalPkceParameters(oAuth2Authentication.getOAuth2Request().getRequestParameters(), codeVerifier)) {
             		try {
                         if (tokenCode.isExpired()) {
@@ -165,6 +167,13 @@ public class UaaTokenStore implements AuthorizationCodeServices {
             	}
             }
         }catch (EmptyResultDataAccessException x) {
+        }catch (PkceValidationException x) {
+        	/*(1) Missing Code Challenge parameter but has Code Verifier parameter. 
+        	 *(2) Missing Code Verifier parameter but has Code Challenge parameter.
+        	 *(3) Invalid Code Challenge parameter. (Handled in Authorization Endpoint)
+        	 *(4) Invalid Code Verifier parameter. (Handled in Token Endpoint)
+        	 *(5) Unsupported Code Challenge Method. (Handled in Authorization Endpoint)
+        	 */
         }
         throw new InvalidGrantException("Invalid authorization code: " + code);
     }

@@ -10,13 +10,18 @@
  *     subcomponents is subject to the terms and conditions of the
  *     subcomponent's license, as noted in the LICENSE file.
  *******************************************************************************/
-
+/*
+ * ****************************************************************************
+ *     Copyright (C) 2018 Siemens AG - PKCE related changes only.
+ * ****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.oauth;
 
 import org.apache.http.HttpHost;
 import org.apache.http.client.utils.URIUtils;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.oauth.client.ClientConstants;
+import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationException;
 import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
 import org.cloudfoundry.identity.uaa.oauth.token.CompositeToken;
 import org.cloudfoundry.identity.uaa.util.UaaHttpRequestUtils;
@@ -163,7 +168,7 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
             throw new InvalidClientException("A client id must be provided");
         }
         
-        pkceParameterValidation(parameters);
+		validateAuthorizationRequestPkceParameters(parameters);
 
         String resolvedRedirect = "";
         try {
@@ -252,32 +257,26 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
     /**
      * PKCE parameters check: 
      * 		code_challenge: (Optional) Must be provided for PKCE and must not be empty.
-     * 		codeChallengeMethod: (Optional) Default value: plain 
-     * @param parameters
+     * 		code_challenge_method: (Optional) Must be "S256" if "code_challenge" parameter provided. 
+     * @param authorizeRequestParameters
      * 			Authorization request parameters
-     * @throws OAuth2Exception
-     * 			In case of PKCE parameters validation errors.
      */
-    protected void pkceParameterValidation(Map<String, String> parameters) throws OAuth2Exception {
-        if (parameters.containsKey(PkceValidationService.CODE_CHALLENGE)) {
-        	String codeChallenge = parameters.get(PkceValidationService.CODE_CHALLENGE);
-        	if (!StringUtils.hasText(codeChallenge)) {
-    			throw new OAuth2Exception("Code challenge parameter must not be empty if provided.");
-    		}else if(!PkceValidationService.isCodeChallengeParameterValid(codeChallenge)) {
+	protected void validateAuthorizationRequestPkceParameters(Map<String, String> authorizeRequestParameters) {
+		String codeChallenge = authorizeRequestParameters.get(PkceValidationService.CODE_CHALLENGE);
+		if (codeChallenge != null) {
+        	if(!PkceValidationService.isCodeChallengeParameterValid(codeChallenge)) {
     			throw new OAuth2Exception("Code challenge length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters.");
-    		}
-        	if (parameters.containsKey(PkceValidationService.CODE_CHALLENGE_METHOD)){
-        		if (!StringUtils.hasText(parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD))) {
-        			throw new OAuth2Exception("Code challenge method parameter must not be empty if provided.");
-        		}
-        		if (!pkceValidationService.isCodeChallengeMethodSupported(parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD))) {
-        			throw new OAuth2Exception("Unsupported code challenge method: "
-        					+ parameters.get(PkceValidationService.CODE_CHALLENGE_METHOD)
-        					+ ". (Supported methods: "+ pkceValidationService.getSupportedCodeChallengeMethods().toString() + ")");
-        		}
-        	}
+    		}else {
+    			String codeChallengeMethod = authorizeRequestParameters.get(PkceValidationService.CODE_CHALLENGE_METHOD);
+    			if (codeChallengeMethod == null){
+    				codeChallengeMethod = "plain";
+    			}
+    			if (!pkceValidationService.isCodeChallengeMethodSupported(codeChallengeMethod)) {
+    				throw new OAuth2Exception("Unsupported code challenge method");
+    			}
+    		}	
         }
-    }
+	}
 
     // This method handles /oauth/authorize calls when user is not logged in and the prompt=none param is used
     @Override
@@ -872,8 +871,8 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
     public void setOpenIdSessionStateCalculator(OpenIdSessionStateCalculator openIdSessionStateCalculator) {
         this.openIdSessionStateCalculator = openIdSessionStateCalculator;
     }
-    
+
 	public void setPkceValidationService(PkceValidationService pkceValidationService) {
 		this.pkceValidationService = pkceValidationService;
-	}	
+	}
 }

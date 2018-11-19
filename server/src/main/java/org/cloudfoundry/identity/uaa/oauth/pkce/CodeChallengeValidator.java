@@ -1,6 +1,8 @@
-/********************************************************************
+/*
+ *******************************************************************
  * Copyright (C) 2018 Siemens AG
- *******************************************************************/
+ *******************************************************************
+ */
 package org.cloudfoundry.identity.uaa.oauth.pkce;
 
 /**
@@ -10,7 +12,7 @@ package org.cloudfoundry.identity.uaa.oauth.pkce;
  * @author Zoltan Maradics
  *
  */
-public interface CodeChallengeMethod {
+public interface CodeChallengeValidator {
 
 	/**
 	 * Validate code verifier based on code challenge method with code challenge.
@@ -19,7 +21,7 @@ public interface CodeChallengeMethod {
 	 * @param codeVerifier
 	 *            Code verifier parameter form Token request.
 	 * @param codeChallenge
-	 *            Code challenge parameter from Authorize request.
+	 *            Code challenge parameter from Authorization request.
 	 * @return True if code verifier transformed with code challenge method match
 	 *         with code challenge. False otherwise.
 	 */
@@ -30,6 +32,6 @@ public interface CodeChallengeMethod {
 	 * 
 	 * @return Code Challenge Method unique Id
 	 */
-	public String getCodeChallengeMethodId();
+	public String getCodeChallengeMethod();
 
 }
