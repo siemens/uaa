@@ -67,11 +67,10 @@ public class UaaAuthorizationEndpointTest {
         uaaAuthorizationEndpoint.setAuthorizationCodeServices(authorizationCodeServices);
         uaaAuthorizationEndpoint.setOpenIdSessionStateCalculator(openIdSessionStateCalculator);
         responseTypes = new HashSet<>();
-        
+
         when(openIdSessionStateCalculator.calculate("userid", null, "http://example.com")).thenReturn("opbshash");
         when(authorizationCodeServices.createAuthorizationCode(any(OAuth2Authentication.class))).thenReturn("code");
-        
-        
+
         PlainPkceVerifier plainPkceVerifier = new PlainPkceVerifier();
         S256PkceVerifier s256PkceVerifier = new S256PkceVerifier();
         Map<String,PkceVerifier> pkceVerifiers = new HashMap<String,PkceVerifier>();

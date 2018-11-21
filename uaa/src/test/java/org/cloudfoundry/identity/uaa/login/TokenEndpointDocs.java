@@ -170,7 +170,6 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             .param(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE)
 			.param(PkceValidationService.CODE_CHALLENGE_METHOD, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
 
-
         MockHttpServletResponse authCodeResponse = getMockMvc().perform(getAuthCode)
             .andExpect(status().isFound())
             .andReturn()

@@ -115,6 +115,7 @@ public class UaaTokenEndpointTests {
         }
     }
 
+
     @Test(expected = HttpRequestMethodNotSupportedException.class)
     public void call_to_get_always_throws_override_method() throws Exception {
         UaaTokenEndpoint endpoint = new UaaTokenEndpoint();
