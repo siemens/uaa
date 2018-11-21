@@ -25,6 +25,7 @@ import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
+import org.springframework.security.oauth2.common.exceptions.InvalidRequestException;
 import org.springframework.security.oauth2.common.exceptions.OAuth2Exception;
 import org.springframework.security.oauth2.provider.endpoint.TokenEndpoint;
 import org.springframework.stereotype.Controller;
@@ -112,19 +113,16 @@ public class UaaTokenEndpoint extends TokenEndpoint {
      */
     protected Map<String, String> mergeAuthorizationCodeWithCodeVerifier(Map<String, String> tokenRequestParameters) {
     	String code = tokenRequestParameters.get("code");
-    	/* Need to check "code" parameter does not empty, otherwise it could 
-		 * occurred to send "code_verifier" without "code" parameter and
-		 * the response is "Invalid Authorization code" instead of "Missing code parameter"  
-		 */
+    	// If code is null or empty continue normal processing (leading to an exception).
     	if(code == null || code.isEmpty()) {
     		return tokenRequestParameters;
     	}else if (tokenRequestParameters.get("code").contains(" ")) {
-    		throw new OAuth2Exception("Unsupported Authorization Code: Contains blank character");
+    		throw new InvalidRequestException("Unsupported Authorization Code: Contains blank character");
     	}
     	String codeVerifier = tokenRequestParameters.get(PkceValidationService.CODE_VERIFIER);
     	if (codeVerifier != null ) {
     		if(!PkceValidationService.isCodeVerifierParameterValid(codeVerifier)) {
-    			throw new OAuth2Exception("Code verifier length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters.");
+    			throw new InvalidRequestException("Code verifier length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters.");
     		}
         	tokenRequestParameters.put("code", tokenRequestParameters.get("code")+" "+tokenRequestParameters.get(PkceValidationService.CODE_VERIFIER));
         }

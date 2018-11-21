@@ -21,7 +21,6 @@ import org.apache.http.HttpHost;
 import org.apache.http.client.utils.URIUtils;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.oauth.client.ClientConstants;
-import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationException;
 import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
 import org.cloudfoundry.identity.uaa.oauth.token.CompositeToken;
 import org.cloudfoundry.identity.uaa.util.UaaHttpRequestUtils;
@@ -257,22 +256,24 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
     /**
      * PKCE parameters check: 
      * 		code_challenge: (Optional) Must be provided for PKCE and must not be empty.
-     * 		code_challenge_method: (Optional) Must be "S256" if "code_challenge" parameter provided. 
-     * @param authorizeRequestParameters
-     * 			Authorization request parameters
+     * 		code_challenge_method: (Optional) Default value is "plain". See .well-known 
+     *                             endpoint for supported code challenge methods list.  
+     * @param authorizationRequestParameters
+     * 			Authorization request parameters.
      */
-	protected void validateAuthorizationRequestPkceParameters(Map<String, String> authorizeRequestParameters) {
-		String codeChallenge = authorizeRequestParameters.get(PkceValidationService.CODE_CHALLENGE);
+	protected void validateAuthorizationRequestPkceParameters(Map<String, String> authorizationRequestParameters) {
+		String codeChallenge = authorizationRequestParameters.get(PkceValidationService.CODE_CHALLENGE);
 		if (codeChallenge != null) {
-        	if(!PkceValidationService.isCodeChallengeParameterValid(codeChallenge)) {
-    			throw new OAuth2Exception("Code challenge length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters.");
+			if(!PkceValidationService.isCodeChallengeParameterValid(codeChallenge)) {
+    			throw new InvalidRequestException("Code challenge length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters.");
     		}else {
-    			String codeChallengeMethod = authorizeRequestParameters.get(PkceValidationService.CODE_CHALLENGE_METHOD);
+    			String codeChallengeMethod = authorizationRequestParameters.get(PkceValidationService.CODE_CHALLENGE_METHOD);
     			if (codeChallengeMethod == null){
     				codeChallengeMethod = "plain";
     			}
     			if (!pkceValidationService.isCodeChallengeMethodSupported(codeChallengeMethod)) {
-    				throw new OAuth2Exception("Unsupported code challenge method");
+    				throw new InvalidRequestException("Unsupported code challenge method. Supported: " +
+    					pkceValidationService.getSupportedCodeChallengeMethods().toString());
     			}
     		}	
         }

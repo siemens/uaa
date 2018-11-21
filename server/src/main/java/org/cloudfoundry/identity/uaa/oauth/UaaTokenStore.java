@@ -154,7 +154,7 @@ public class UaaTokenStore implements AuthorizationCodeServices {
             	}else {
             		oAuth2Authentication = deserializeOauth2Authentication(tokenCode.getAuthentication());
             	}
-            	if (pkceValidationService.evaluateOptionalPkceParameters(oAuth2Authentication.getOAuth2Request().getRequestParameters(), codeVerifier)) {
+            	if (pkceValidationService.checkAndValidate(oAuth2Authentication.getOAuth2Request().getRequestParameters(), codeVerifier)) {
             		try {
                         if (tokenCode.isExpired()) {
                             logger.debug("[oauth_code] Found code, but it expired:"+tokenCode);
@@ -167,13 +167,14 @@ public class UaaTokenStore implements AuthorizationCodeServices {
             	}
             }
         }catch (EmptyResultDataAccessException x) {
-        }catch (PkceValidationException x) {
+        }catch (PkceValidationException exception) {
         	/*(1) Missing Code Challenge parameter but has Code Verifier parameter. 
         	 *(2) Missing Code Verifier parameter but has Code Challenge parameter.
         	 *(3) Invalid Code Challenge parameter. (Handled in Authorization Endpoint)
         	 *(4) Invalid Code Verifier parameter. (Handled in Token Endpoint)
         	 *(5) Unsupported Code Challenge Method. (Handled in Authorization Endpoint)
         	 */
+        	logger.debug("PKCE exception: "+exception.getMessage());
         }
         throw new InvalidGrantException("Invalid authorization code: " + code);
     }

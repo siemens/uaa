@@ -3,11 +3,12 @@
  * Copyright (C) 2018 Siemens AG
  *******************************************************************
  */
-package org.cloudfoundry.identity.uaa.oauth.pkce.validators;
+package org.cloudfoundry.identity.uaa.oauth.pkce.verifiers;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.cloudfoundry.identity.uaa.oauth.pkce.verifiers.PlainPkceVerifier;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -16,36 +17,36 @@ import org.junit.Test;
  * @author Zoltan Maradics
  *
  */
-public class PlainCodeChallengeValidatorTest {
+public class PlainPkceVerifierTest {
 	
-    private PlainCodeChallengeValidator plainCodeChallengeMethod;
+    private PlainPkceVerifier plainPkceVerifier;
 	
 	private final String matchParameter = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
 	private final String mismatchParameter = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 	
 	@Before
 	public void createPlainCodeChallengeMethod() throws Exception {
-		plainCodeChallengeMethod = new PlainCodeChallengeValidator();
+		plainPkceVerifier = new PlainPkceVerifier();
 	}
 	
 	@Test
 	public void testCodeVerifierMethodWithMatchParameters() throws Exception {
-		assertTrue(plainCodeChallengeMethod.isCodeVerifierValid(matchParameter, matchParameter));
+		assertTrue(plainPkceVerifier.verify(matchParameter, matchParameter));
 	}
 	
 	@Test
 	public void testCodeVerifierMethodWithMismatchParameters() throws Exception {
-		assertFalse(plainCodeChallengeMethod.isCodeVerifierValid(matchParameter, mismatchParameter));
+		assertFalse(plainPkceVerifier.verify(matchParameter, mismatchParameter));
 	}
 	
 	@Test
 	public void testCodeChallengeIsNull() throws Exception {
-		assertFalse(plainCodeChallengeMethod.isCodeVerifierValid(matchParameter, null));
+		assertFalse(plainPkceVerifier.verify(matchParameter, null));
 	}
 	
 	@Test
 	public void testCodeVerifierIsNull() throws Exception {
-		assertFalse(plainCodeChallengeMethod.isCodeVerifierValid(null, matchParameter));
+		assertFalse(plainPkceVerifier.verify(null, matchParameter));
 	}
 
 }

@@ -19,10 +19,10 @@ import org.cloudfoundry.identity.uaa.authentication.UaaAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.oauth.UaaTokenStore;
-import org.cloudfoundry.identity.uaa.oauth.pkce.CodeChallengeValidator;
+import org.cloudfoundry.identity.uaa.oauth.pkce.PkceVerifier;
+import org.cloudfoundry.identity.uaa.oauth.pkce.verifiers.PlainPkceVerifier;
+import org.cloudfoundry.identity.uaa.oauth.pkce.verifiers.S256PkceVerifier;
 import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
-import org.cloudfoundry.identity.uaa.oauth.pkce.validators.PlainCodeChallengeValidator;
-import org.cloudfoundry.identity.uaa.oauth.pkce.validators.S256CodeChallengeValidator;
 import org.cloudfoundry.identity.uaa.test.JdbcTestBase;
 import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
 import org.cloudfoundry.identity.uaa.util.UaaStringUtils;
@@ -93,9 +93,9 @@ public class UaaTokenStoreTests extends JdbcTestBase {
 
         List<GrantedAuthority> userAuthorities = Arrays.<GrantedAuthority>asList(new SimpleGrantedAuthority("openid"));
         
-        S256CodeChallengeValidator s256CodeChallengeMethod = new S256CodeChallengeValidator();
-        PlainCodeChallengeValidator plainCodeChallengeValidator = new PlainCodeChallengeValidator();
-        Map<String,CodeChallengeValidator> codeChallengeMethods = new HashMap<String,CodeChallengeValidator>();
+        S256PkceVerifier s256CodeChallengeMethod = new S256PkceVerifier();
+        PlainPkceVerifier plainCodeChallengeValidator = new PlainPkceVerifier();
+        Map<String,PkceVerifier> codeChallengeMethods = new HashMap<String,PkceVerifier>();
         codeChallengeMethods.put(s256CodeChallengeMethod.getCodeChallengeMethod(), s256CodeChallengeMethod);
         codeChallengeMethods.put(plainCodeChallengeValidator.getCodeChallengeMethod(), plainCodeChallengeValidator);
         pkceValidationService = new PkceValidationService(codeChallengeMethods);
