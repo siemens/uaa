@@ -83,12 +83,12 @@ public class PkceValidationServiceTest {
 	
 	@Test
 	public void testS256CodeChallengeMethodParameter() throws Exception {
-		assertFalse(pkceValidationService.isCodeChallengeMethodSupported("S256"));
+		assertTrue(pkceValidationService.isCodeChallengeMethodSupported("S256"));
 	}
 	
 	@Test
 	public void testPlainCodeChallengeMethodParameter() throws Exception {
-		assertFalse(pkceValidationService.isCodeChallengeMethodSupported("plain"));
+		assertTrue(pkceValidationService.isCodeChallengeMethodSupported("plain"));
 	}
 
 	@Test
@@ -109,20 +109,10 @@ public class PkceValidationServiceTest {
 		pkceValidationService.checkAndValidate(authorizeRequestParameters, "");
 	}
 
-	@Test(expected = PkceValidationException.class)
-	public void testEmptyCodeChallengeMethodForEvaluation() throws Exception {
-		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE,
-				validPlainCodeChallengeOrCodeVerifierParameter);
-		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, "");
-		pkceValidationService.checkAndValidate(authorizeRequestParameters,
-				validPlainCodeChallengeOrCodeVerifierParameter);
-	}
-
 	@Test
 	public void testNoCodeChallengeMethodForEvaluation() throws Exception {
 		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE,
 				validPlainCodeChallengeOrCodeVerifierParameter);
-		authorizeRequestParameters.put(PkceValidationService.CODE_CHALLENGE_METHOD, "plain");
 		assertThat(pkceValidationService.checkAndValidate(authorizeRequestParameters,
 				validPlainCodeChallengeOrCodeVerifierParameter), is(true));
 	}

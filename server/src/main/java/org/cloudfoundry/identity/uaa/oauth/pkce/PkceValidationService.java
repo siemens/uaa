@@ -79,26 +79,16 @@ public class PkceValidationService {
 	 *         false: in case of Authorization Code Grand with PKCE and code verifier
 	 *                does not match with code challenge based on code challenge method.
 	 * @throws PkceValidationException
-	 *         (1) Missing Code Challenge parameter but has Code Verifier parameter.
-	 *         (2) Missing Code Verifier parameter but has Code Challenge parameter.
-	 *         (3) Invalid Code Challenge parameter.
-	 *         (4) Invalid Code Verifier parameter.
-	 *         (5) Unsupported Code Challenge Method.
+	 *         (1) Code verifier must be provided for this authorization code.
+	 *         (2) Code verifier not required for this authorization code.
 	 */
 	public boolean checkAndValidate(Map<String, String> requestParameters, String codeVerifier) throws PkceValidationException {
 		if (!hasPkceParameters(requestParameters, codeVerifier)) {
 			return true;
 		}
 		String codeChallengeMethod = extractCodeChallengeMethod(requestParameters);
-		String codeChallenge = requestParameters.get(PkceValidationService.CODE_CHALLENGE);
-		if (!isCodeChallengeParameterValid(codeChallenge)) {
-			throw new PkceValidationException("Invalid code challenge parameter");
-		} else if (!isCodeChallengeMethodSupported(codeChallengeMethod)) {
-			throw new PkceValidationException("Unsupported code challenge method parameter");
-		} else if (!isCodeVerifierParameterValid(codeVerifier)) {
-			throw new PkceValidationException("Invalid code verifier parameter");
-		}
-		return pkceVerifiers.get(codeChallengeMethod).verify(codeVerifier, codeChallenge);
+		return pkceVerifiers.get(codeChallengeMethod).verify(codeVerifier,
+				requestParameters.get(PkceValidationService.CODE_CHALLENGE));
 	}
 	
 	/**
@@ -110,8 +100,8 @@ public class PkceValidationService {
 	 * @return true: There are Code Challenge and Code Verifier parameters with not null value.
 	 *         false: There are no PKCE parameters.
 	 * @throws PkceValidationException
-	 *         (1) Missing Code Verifier parameter but has Code Challenge parameter.
-	 *         (2) Missing Code Challenge parameter but has Code Verifier parameter.
+	 *         (1) Code verifier must be provided for this authorization code.
+	 *         (2) Code verifier not required for this authorization code.
 	 */
 	protected boolean hasPkceParameters(Map<String, String> requestParameters, String codeVerifier) throws PkceValidationException{
 		String codeChallenge = requestParameters.get(CODE_CHALLENGE);
@@ -119,10 +109,10 @@ public class PkceValidationService {
 			if (codeVerifier != null && !codeVerifier.isEmpty()) {
 				return true;
 			}else {
-				throw new PkceValidationException("Missing Code Verifier parameter but has Code Challenge parameter");
+				throw new PkceValidationException("Code verifier must be provided for this authorization code.");
 			}
 		}else if (codeVerifier != null && !codeVerifier.isEmpty()){
-			throw new PkceValidationException("Missing Code Challenge parameter but has Code Verifier parameter");
+			throw new PkceValidationException("Code verifier not required for this authorization code.");
 		}
 		return false;
 	}

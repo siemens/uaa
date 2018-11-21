@@ -168,13 +168,10 @@ public class UaaTokenStore implements AuthorizationCodeServices {
             }
         }catch (EmptyResultDataAccessException x) {
         }catch (PkceValidationException exception) {
-        	/*(1) Missing Code Challenge parameter but has Code Verifier parameter. 
-        	 *(2) Missing Code Verifier parameter but has Code Challenge parameter.
-        	 *(3) Invalid Code Challenge parameter.
-        	 *(4) Invalid Code Verifier parameter.
-        	 *(5) Unsupported Code Challenge Method.
-        	 */
-        	logger.debug("PKCE exception: " + exception.getMessage());
+             /* (1) Missing code verifier parameter.
+              * (2) Missing code challenge parameter.
+              */
+            throw new InvalidGrantException("PKCE error: "+ exception.getMessage());
         }
         throw new InvalidGrantException("Invalid authorization code: " + code);
     }
