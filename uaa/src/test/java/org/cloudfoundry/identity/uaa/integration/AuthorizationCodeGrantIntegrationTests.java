@@ -124,16 +124,15 @@ public class AuthorizationCodeGrantIntegrationTests {
     	
     	URI uri = builder.build();
     	
-    	ResponseEntity<Void> result =
+    	ResponseEntity<String> result =
     			serverRunning.createRestTemplate().exchange(
     					uri.toString(),
     					HttpMethod.GET,
     					new HttpEntity<>(null, new HttpHeaders()),
-    					Void.class
+    					String.class
     			);
-    	assertEquals(HttpStatus.FOUND, result.getStatusCode());
-    	String location = result.getHeaders().getLocation().toString();
-    	assertThat(location, containsString("error=invalid_request&error_description=Code%20challenge"));
+    	assertEquals(HttpStatus.BAD_REQUEST, result.getStatusCode());
+    	assertThat(result.getBody(), containsString("Code challenge length must between 43 and 128 and use only [A-Z],[a-z],[0-9],_,.,-,~ characters."));
     }
     
     @Test
@@ -164,16 +163,15 @@ public class AuthorizationCodeGrantIntegrationTests {
     	
     	URI uri = builder.build();
     	
-    	ResponseEntity<Void> result =
+    	ResponseEntity<String> result =
     			serverRunning.createRestTemplate().exchange(
     					uri.toString(),
     					HttpMethod.GET,
     					new HttpEntity<>(null, new HttpHeaders()),
-    					Void.class
+    					String.class
     			);
-    	assertEquals(HttpStatus.FOUND, result.getStatusCode());
-    	String location = result.getHeaders().getLocation().toString();
-    	assertThat(location, containsString("error=invalid_request&error_description=Unsupported%20code%20challenge%20method"));
+    	assertEquals(HttpStatus.BAD_REQUEST, result.getStatusCode());
+    	assertThat(result.getBody(), containsString("Unsupported code challenge method."));
     }
     
 	@Test
