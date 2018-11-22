@@ -1202,7 +1202,7 @@ public class IntegrationTestUtils {
         return headers;
     } 	
   
-    public static String getAuthorizationCode(ServerRunning serverRunning,
+    public static String getAuthorizationResponse(ServerRunning serverRunning,
 			  String clientId,
 			  String username,
 			  String password,
@@ -1283,16 +1283,14 @@ public class IntegrationTestUtils {
     		result = serverRunning.postForResponse("/oauth/authorize", getHeaders(cookies), formData);
     		assertEquals(HttpStatus.FOUND, result.getStatusCode());
     		location = result.getHeaders().getLocation().toString();
+    	} else if(response.getStatusCode() == HttpStatus.BAD_REQUEST){
+    		return response.getBody();
     	} else {
     		// Token cached so no need for second approval
     		assertEquals(HttpStatus.FOUND, response.getStatusCode());
     		location = response.getHeaders().getLocation().toString();
     	}
-    	if (hasText(redirectUri)) {
-    		assertTrue("Wrong location: " + location, location.matches(redirectUri + ".*code=.+"));
-    	}
-    	
-    	return location.split("code=")[1].split("&")[0];
+    	return location;
     }
     
     public static ResponseEntity<Map> getTokens(ServerRunning serverRunning,
