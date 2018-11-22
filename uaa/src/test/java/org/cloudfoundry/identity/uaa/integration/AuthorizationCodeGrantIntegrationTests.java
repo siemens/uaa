@@ -73,15 +73,104 @@ public class AuthorizationCodeGrantIntegrationTests {
     
     @Test
     public void testPkcePlainWithWrongCodeVerifier() throws Exception {
-        testPkceWithWrongCodeVerifier(UaaTestAccounts.CODE_CHALLENGE, "plain", UaaTestAccounts.CODE_VERIFIER);
+        ResponseEntity<Map> tokenResponse = doAuthorizeAndTokenRequest(UaaTestAccounts.CODE_CHALLENGE, "plain", UaaTestAccounts.CODE_VERIFIER);
+        assertEquals(HttpStatus.BAD_REQUEST, tokenResponse.getStatusCode());
+        Map<String,String> body = tokenResponse.getBody();
+        assertThat(body.get("error"), containsString("invalid_grant"));
+        assertThat(body.get("error_description"), containsString("Invalid authorization code"));
     }
     
     @Test
     public void testPkceS256WithWrongCodeVerifier() throws Exception {
-        testPkceWithWrongCodeVerifier(UaaTestAccounts.CODE_CHALLENGE,
-        		UaaTestAccounts.CODE_CHALLENGE_METHOD_S256, UaaTestAccounts.CODE_CHALLENGE);
+        ResponseEntity<Map> tokenResponse = doAuthorizeAndTokenRequest(UaaTestAccounts.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256, UaaTestAccounts.CODE_CHALLENGE);
+        assertEquals(HttpStatus.BAD_REQUEST, tokenResponse.getStatusCode());
+        Map<String,String> body = tokenResponse.getBody();
+        assertThat(body.get("error"), containsString("invalid_grant"));
+        assertThat(body.get("error_description"), containsString("Invalid authorization code"));
     }
-
+    
+    @Test
+    public void testMissingCodeChallenge() throws Exception {
+    	ResponseEntity<Map> tokenResponse = doAuthorizeAndTokenRequest("", UaaTestAccounts.CODE_CHALLENGE_METHOD_S256, UaaTestAccounts.CODE_VERIFIER);
+        assertEquals(HttpStatus.BAD_REQUEST, tokenResponse.getStatusCode());
+        Map<String,String> body = tokenResponse.getBody();
+        assertThat(body.get("error"), containsString("invalid_grant"));
+        assertThat(body.get("error_description"), containsString("PKCE error: Code verifier not required for this authorization code."));
+    }
+    
+    @Test
+    public void testMissingCodeVerifier() throws Exception {
+    	ResponseEntity<Map> tokenResponse = doAuthorizeAndTokenRequest(UaaTestAccounts.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256, "");
+        assertEquals(HttpStatus.BAD_REQUEST, tokenResponse.getStatusCode());
+        Map<String,String> body = tokenResponse.getBody();
+        assertThat(body.get("error"), containsString("invalid_grant"));
+        assertThat(body.get("error_description"), containsString("PKCE error: Code verifier must be provided for this authorization code."));
+    }
+    
+    @Test
+    public void testInvalidCodeChallenge() throws Exception {
+    	AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
+    	ServerRunning.UriBuilder builder = serverRunning.buildUri("/oauth/authorize")
+    			.queryParam("response_type", "code")
+    			.queryParam("client_id", resource.getClientId())
+    			.queryParam("redirect_uri", resource.getPreEstablishedRedirectUri())
+    			.queryParam("code_challenge", "ShortCodeChallenge")
+    	        .queryParam("code_challenge_method", UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
+    	
+    	URI uri = builder.build();
+    	
+    	ResponseEntity<Void> result =
+    			serverRunning.createRestTemplate().exchange(
+    					uri.toString(),
+    					HttpMethod.GET,
+    					new HttpEntity<>(null, new HttpHeaders()),
+    					Void.class
+    			);
+    	assertEquals(HttpStatus.FOUND, result.getStatusCode());
+    	String location = result.getHeaders().getLocation().toString();
+    	assertThat(location, containsString("error=invalid_request&error_description=Code%20challenge"));
+    }
+    
+    @Test
+    public void testInvalidCodeVerifier() throws Exception {
+    	AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
+    	ResponseEntity<Map> tokenResponse = IntegrationTestUtils.getTokens(serverRunning,
+        		testAccounts, 
+        		resource.getClientId(), 
+        		resource.getClientSecret(), 
+        		resource.getPreEstablishedRedirectUri(), 
+        		"invalidCodeVerifier",
+        		"authorizationCode");
+    	assertEquals(HttpStatus.BAD_REQUEST, tokenResponse.getStatusCode());
+    	Map<String,String> body = tokenResponse.getBody();
+    	assertThat(body.get("error"), containsString("invalid_request"));
+        assertThat(body.get("error_description"), containsString("Code verifier length must"));
+    }
+    
+    @Test
+    public void testUnsupportedCodeChallengeMethod() throws Exception {
+    	AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
+    	ServerRunning.UriBuilder builder = serverRunning.buildUri("/oauth/authorize")
+    			.queryParam("response_type", "code")
+    			.queryParam("client_id", resource.getClientId())
+    			.queryParam("redirect_uri", resource.getPreEstablishedRedirectUri())
+    			.queryParam("code_challenge", UaaTestAccounts.CODE_CHALLENGE)
+    	        .queryParam("code_challenge_method", "UnsupportedCodeChallengeMethod");
+    	
+    	URI uri = builder.build();
+    	
+    	ResponseEntity<Void> result =
+    			serverRunning.createRestTemplate().exchange(
+    					uri.toString(),
+    					HttpMethod.GET,
+    					new HttpEntity<>(null, new HttpHeaders()),
+    					Void.class
+    			);
+    	assertEquals(HttpStatus.FOUND, result.getStatusCode());
+    	String location = result.getHeaders().getLocation().toString();
+    	assertThat(location, containsString("error=invalid_request&error_description=Unsupported%20code%20challenge%20method"));
+    }
+    
 	@Test
     public void testZoneDoesNotExist() {
         ServerRunning.UriBuilder builder = serverRunning.buildUri(serverRunning.getAuthorizationUri().replace("localhost", "testzonedoesnotexist.localhost"))
@@ -154,14 +243,6 @@ public class AuthorizationCodeGrantIntegrationTests {
         		testAccounts.getDefaultAuthorizationCodeResource().getClientId(),
         		testAccounts.getDefaultAuthorizationCodeResource().getClientSecret());
     }
-    
-    private void testPkceWithWrongCodeVerifier(String codeChallenge, String codeChallengeMethod, String codeVerifier) throws Exception {
-    	ResponseEntity<Map> tokenResponse = doAuthorizeAndTokenRequest(codeChallenge, codeChallengeMethod, codeVerifier);
-        assertEquals(HttpStatus.BAD_REQUEST, tokenResponse.getStatusCode());
-        Map<String,String> body = tokenResponse.getBody();
-        assertThat(body.get("error"), containsString("invalid_grant"));
-        assertThat(body.get("error_description"), containsString("Invalid authorization code"));
-	}
     
     private ResponseEntity<Map> doAuthorizeAndTokenRequest(String codeChallenge, String codeChallengeMethod, String codeVerifier) throws Exception {
     	AuthorizationCodeResourceDetails resource = testAccounts.getDefaultAuthorizationCodeResource();
