@@ -1,3 +1,8 @@
+/*
+ * ****************************************************************************
+ *     Copyright (C) 2018 Siemens AG - PKCE related changes only.
+ * ****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.login;
 
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;

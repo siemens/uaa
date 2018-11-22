@@ -12,6 +12,8 @@
     subcomponent's license, as noted in the LICENSE file.
 
 -->
+<!--Copyright (C) 2018 Siemens AG - PKCE related changes only.-->
+
 <beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.springframework.org/schema/beans"
     xmlns:oauth="http://www.springframework.org/schema/security/oauth2" xmlns:util="http://www.springframework.org/schema/util"
     xmlns:aop="http://www.springframework.org/schema/aop"

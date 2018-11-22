@@ -12,7 +12,11 @@
  *     subcomponent's license, as noted in the LICENSE file.
  * ****************************************************************************
  */
-
+/*
+ * ****************************************************************************
+ *     Copyright (C) 2018 Siemens AG - PKCE related changes only.
+ * ****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.account;
 
 import org.junit.Before;
