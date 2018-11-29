@@ -82,7 +82,7 @@ public class AuthorizationCodeGrantIntegrationTests {
         assertEquals(HttpStatus.BAD_REQUEST, tokenResponse.getStatusCode());
         Map<String,String> body = tokenResponse.getBody();
         assertThat(body.get("error"), containsString("invalid_grant"));
-        assertThat(body.get("error_description"), containsString("Invalid authorization code"));
+        assertThat(body.get("error_description"), containsString("Invalid code verifier"));
     }
     
     @Test
@@ -91,7 +91,7 @@ public class AuthorizationCodeGrantIntegrationTests {
         assertEquals(HttpStatus.BAD_REQUEST, tokenResponse.getStatusCode());
         Map<String,String> body = tokenResponse.getBody();
         assertThat(body.get("error"), containsString("invalid_grant"));
-        assertThat(body.get("error_description"), containsString("Invalid authorization code"));
+        assertThat(body.get("error_description"), containsString("Invalid code verifier"));
     }
     
     @Test
