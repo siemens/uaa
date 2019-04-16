@@ -33,15 +33,7 @@
     <oauth:resource id="uaa" access-token-uri="${uaa.token.url:http://localhost:8080/uaa/oauth/token}"
                     client-id="login" client-secret="${LOGIN_SECRET:loginsecret}" type="client_credentials"/>
 
-    <bean id="notificationsTemplate" class="org.cloudfoundry.identity.uaa.message.LocalUaaRestTemplate">
-        <constructor-arg ref="uaa"/>
-        <property name="clientId" value="login"/>
-        <property name="tokenServices" ref="tokenServices"/>
-        <property name="clientDetailsService" ref="jdbcClientDetailsService"/>
-        <property name="verifySsl" value="${notifications.verify_ssl:false}"/>
-    </bean>
-
-    <!--<oauth:rest-template id="notificationsTemplate" resource="uaa" />-->
+    <bean id="notificationsTemplate" class="org.cloudfoundry.identity.uaa.message.LocalUaaRestTemplate" />
 
     <context:annotation-config/>
 
@@ -220,7 +212,6 @@
     </bean>
 
     <bean id="mfaChecker" class="org.cloudfoundry.identity.uaa.mfa.MfaChecker">
-        <constructor-arg name="providerProvisioning" ref="identityProviderProvisioning"/>
     </bean>
 
     <bean id="mfaUiRequiredFilter" class="org.cloudfoundry.identity.uaa.mfa.MfaUiRequiredFilter">
@@ -475,8 +466,6 @@
     <!-- Handler deciding where to redirect user after successful login -->
     <bean id="successRedirectHandler"
           class="org.cloudfoundry.identity.uaa.web.UaaSavedRequestAwareAuthenticationSuccessHandler"/>
-
-    <bean id="openIdUserDetailsService" class="org.cloudfoundry.identity.uaa.account.OpenIdUserDetailsService"/>
 
     <context:annotation-config/>
     <bean id="loginServerConfig" class="org.cloudfoundry.identity.uaa.impl.config.LoginServerConfig"/>

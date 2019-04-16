@@ -12,8 +12,9 @@
  *******************************************************************************/
 package org.cloudfoundry.identity.uaa.zone;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.cloudfoundry.identity.uaa.zone.beans.IdentityZoneManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.cloudfoundry.identity.uaa.audit.event.SystemDeletable;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.oauth.client.ClientConstants;
@@ -58,11 +59,11 @@ import static org.springframework.util.StringUtils.commaDelimitedListToSet;
 /**
  * A copy of JdbcClientDetailsService but with IdentityZone awareness
  */
-public class MultitenantJdbcClientDetailsService extends ClientServicesExtension implements
+public class MultitenantJdbcClientDetailsService extends MultitenantClientServices implements
     ResourceMonitor<ClientDetails>,
     SystemDeletable {
 
-    protected static final Log logger = LogFactory.getLog(MultitenantJdbcClientDetailsService.class);
+    protected static final Logger logger = LoggerFactory.getLogger(MultitenantJdbcClientDetailsService.class);
 
     private static final String GET_CREATED_BY_SQL =
         "select created_by from oauth_client_details where client_id=? and identity_zone_id=?";
@@ -105,23 +106,20 @@ public class MultitenantJdbcClientDetailsService extends ClientServicesExtension
 
     private String selectClientDetailsSql = DEFAULT_SELECT_STATEMENT;
 
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     private final JdbcTemplate jdbcTemplate;
 
     private JdbcListFactory listFactory;
 
-    public MultitenantJdbcClientDetailsService(JdbcTemplate jdbcTemplate) {
+    public MultitenantJdbcClientDetailsService(
+            final JdbcTemplate jdbcTemplate,
+            final IdentityZoneManager identityZoneManager,
+            final PasswordEncoder passwordEncoder) {
+        super(identityZoneManager);
         Assert.notNull(jdbcTemplate, "JDbcTemplate required");
         this.jdbcTemplate = jdbcTemplate;
         this.listFactory = new DefaultJdbcListFactory(new NamedParameterJdbcTemplate(jdbcTemplate));
-    }
-
-    /**
-     * @param passwordEncoder
-     *            the password encoder to set
-     */
-    public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -150,7 +148,7 @@ public class MultitenantJdbcClientDetailsService extends ClientServicesExtension
     public void updateClientDetails(ClientDetails clientDetails, String zoneId) throws NoSuchClientException {
         int count = jdbcTemplate.update(DEFAULT_UPDATE_STATEMENT, getFieldsForUpdate(clientDetails, zoneId));
         if (count != 1) {
-            throw new NoSuchClientException("No client found with id = " + clientDetails.getClientId() + " in identity zone "+IdentityZoneHolder.get().getName());
+            throw new NoSuchClientException("No client found with id = " + clientDetails.getClientId() + " in identity zone id=" + zoneId);
         }
     }
 
@@ -250,7 +248,7 @@ public class MultitenantJdbcClientDetailsService extends ClientServicesExtension
     }
 
     @Override
-    public Log getLogger() {
+    public Logger getLogger() {
         return logger;
     }
 

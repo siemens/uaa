@@ -12,8 +12,8 @@
  *******************************************************************************/
 package org.cloudfoundry.identity.uaa.account;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.cloudfoundry.identity.uaa.approval.Approval;
 import org.cloudfoundry.identity.uaa.approval.ApprovalStore;
 import org.cloudfoundry.identity.uaa.approval.DescribedApproval;
@@ -22,7 +22,7 @@ import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.oauth.client.ClientConstants;
 import org.cloudfoundry.identity.uaa.security.DefaultSecurityContextAccessor;
 import org.cloudfoundry.identity.uaa.security.SecurityContextAccessor;
-import org.cloudfoundry.identity.uaa.zone.ClientServicesExtension;
+import org.cloudfoundry.identity.uaa.zone.MultitenantClientServices;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -51,19 +51,19 @@ import static org.springframework.util.StringUtils.hasText;
 @Controller
 public class ProfileController {
 
-    protected static Log logger = LogFactory.getLog(ProfileController.class);
+    protected static Logger logger = LoggerFactory.getLogger(ProfileController.class);
 
     private final ApprovalStore approvalsService;
-    private final ClientServicesExtension clientDetailsService;
+    private final MultitenantClientServices clientDetailsService;
     private final SecurityContextAccessor securityContextAccessor;
 
     public ProfileController(ApprovalStore approvalsService,
-                             ClientServicesExtension clientDetailsService) {
+                             MultitenantClientServices clientDetailsService) {
         this(approvalsService, clientDetailsService, new DefaultSecurityContextAccessor());
     }
 
     public ProfileController(ApprovalStore approvalsService,
-                             ClientServicesExtension clientDetailsService,
+                             MultitenantClientServices clientDetailsService,
                              SecurityContextAccessor securityContextAccessor) {
         this.approvalsService = approvalsService;
         this.clientDetailsService = clientDetailsService;

@@ -14,22 +14,27 @@
 package org.cloudfoundry.identity.uaa.util;
 
 import com.google.common.collect.Lists;
-import org.apache.commons.io.output.TeeOutputStream;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.oauth.KeyInfoService;
 import org.cloudfoundry.identity.uaa.oauth.jwt.ChainedSignatureVerifier;
 import org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants;
 import org.cloudfoundry.identity.uaa.oauth.token.RevocableToken;
 import org.cloudfoundry.identity.uaa.oauth.token.RevocableTokenProvisioning;
+import org.cloudfoundry.identity.uaa.test.TestUtils;
 import org.cloudfoundry.identity.uaa.user.InMemoryUaaUserDatabase;
 import org.cloudfoundry.identity.uaa.user.MockUaaUserDatabase;
 import org.cloudfoundry.identity.uaa.user.UaaUser;
 import org.cloudfoundry.identity.uaa.user.UaaUserDatabase;
-import org.cloudfoundry.identity.uaa.zone.IdentityZone;
-import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
-import org.cloudfoundry.identity.uaa.zone.IdentityZoneProvisioning;
-import org.cloudfoundry.identity.uaa.zone.InMemoryClientServicesExtentions;
+import org.cloudfoundry.identity.uaa.zone.*;
+import org.cloudfoundry.identity.uaa.zone.beans.IdentityZoneManager;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -46,8 +51,6 @@ import org.springframework.security.oauth2.provider.ClientDetails;
 import org.springframework.security.oauth2.provider.client.BaseClientDetails;
 import org.springframework.security.oauth2.provider.client.InMemoryClientDetailsService;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -62,9 +65,11 @@ import static org.cloudfoundry.identity.uaa.util.UaaMapUtils.map;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.Matchers.*;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -82,32 +87,44 @@ public class TokenValidationTest {
     private Map<String, Object> content;
     private Signer signer;
     private RevocableTokenProvisioning revocableTokenProvisioning;
-    private InMemoryClientServicesExtentions clientDetailsService;
+    private InMemoryMultitenantClientServices inMemoryMultitenantClientServices;
     private UaaUserDatabase userDb;
     private UaaUser uaaUser;
     private BaseClientDetails uaaClient;
     private Collection<String> uaaUserGroups;
-    private IdentityZoneProvisioning identityZoneProvisioning;
 
-    private PrintStream systemOut;
-    private PrintStream systemErr;
-    private ByteArrayOutputStream loggingOutputStream;
+    private List<String> logEvents;
+    private AbstractAppender appender;
 
     @Before
     public void setupLogger() {
-        systemOut = System.out;
-        systemErr = System.err;
+        logEvents = new ArrayList<>();
+        appender = new AbstractAppender("", null, null) {
+            @Override
+            public void append(LogEvent event) {
+                logEvents.add(String.format("%s -- %s", event.getLevel().name(), event.getMessage().getFormattedMessage()));
+            }
+        };
+        appender.start();
 
-        loggingOutputStream = new ByteArrayOutputStream();
-
-        System.setErr(new PrintStream(new TeeOutputStream(loggingOutputStream, systemOut), true));
-        System.setOut(new PrintStream(new TeeOutputStream(loggingOutputStream, systemErr), true));
+        LoggerContext context = (LoggerContext) LogManager.getContext(false);
+        context.getRootLogger().addAppender(appender);
     }
 
     @After
     public void resetStdout() {
-        System.setOut(systemOut);
-        System.setErr(systemErr);
+        LoggerContext context = (LoggerContext) LogManager.getContext(false);
+        context.getRootLogger().removeAppender(appender);
+    }
+
+    @BeforeClass
+    public static void beforeClass() {
+        TestUtils.resetIdentityZoneHolder(null);
+    }
+
+    @AfterClass
+    public static void afterClass() {
+        TestUtils.resetIdentityZoneHolder(null);
     }
 
     @Rule
@@ -122,7 +139,7 @@ public class TokenValidationTest {
         uaaZone.getConfig().getTokenPolicy().setKeys(
                 map(entry(defaultKeyId, macSigningKeySecret))
         );
-        identityZoneProvisioning = mock(IdentityZoneProvisioning.class);
+        IdentityZoneProvisioning identityZoneProvisioning = mock(IdentityZoneProvisioning.class);
         when(identityZoneProvisioning.retrieve(anyString())).thenReturn(uaaZone);
 
         IdentityZoneHolder.setProvisioning(identityZoneProvisioning);
@@ -157,10 +174,13 @@ public class TokenValidationTest {
 
         signer = new MacSigner(macSigningKeySecret);
 
-        clientDetailsService = new InMemoryClientServicesExtentions();
+        IdentityZoneManager mockIdentityZoneManager = mock(IdentityZoneManager.class);
+        when(mockIdentityZoneManager.getCurrentIdentityZoneId()).thenReturn(IdentityZone.getUaaZoneId());
+
+        inMemoryMultitenantClientServices = new InMemoryMultitenantClientServices(mockIdentityZoneManager);
         uaaClient = new BaseClientDetails("app", "acme", "acme.dev", GRANT_TYPE_AUTHORIZATION_CODE, "");
         uaaClient.addAdditionalInformation(REQUIRED_USER_GROUPS, Arrays.asList());
-        clientDetailsService.setClientDetailsStore(IdentityZone.getUaa().getId(),
+        inMemoryMultitenantClientServices.setClientDetailsStore(IdentityZone.getUaaZoneId(),
                 Collections.singletonMap(CLIENT_ID, uaaClient));
         revocableTokenProvisioning = mock(RevocableTokenProvisioning.class);
 
@@ -203,7 +223,7 @@ public class TokenValidationTest {
 
 
         ClientDetails clientDetails = TokenValidation.buildAccessTokenValidator(token, new KeyInfoService("https://localhost"))
-                .getClientDetails(clientDetailsService);
+                .getClientDetails(inMemoryMultitenantClientServices);
 
         assertThat(clientDetails.getClientId(), equalTo(content.get("cid")));
     }
@@ -217,7 +237,7 @@ public class TokenValidationTest {
         expectedException.expect(InvalidTokenException.class);
         expectedException.expectMessage("Invalid client ID " + invalidClientId);
 
-        TokenValidation.buildAccessTokenValidator(token, new KeyInfoService("https://localhost")).getClientDetails(clientDetailsService);
+        TokenValidation.buildAccessTokenValidator(token, new KeyInfoService("https://localhost")).getClientDetails(inMemoryMultitenantClientServices);
     }
 
     @Test
@@ -320,7 +340,7 @@ public class TokenValidationTest {
     public void checking_token_happy_case() {
         buildAccessTokenValidator(getToken(), new KeyInfoService("https://localhost"))
                 .checkIssuer("http://localhost:8080/uaa/oauth/token")
-                .checkClient((clientId) -> clientDetailsService.loadClientByClientId(clientId))
+                .checkClient((clientId) -> inMemoryMultitenantClientServices.loadClientByClientId(clientId))
                 .checkExpiry(oneSecondBeforeTheTokenExpires)
                 .checkUser((uid) -> userDb.retrieveUserById(uid))
                 .checkRequestedScopesAreGranted("acme.dev", "another.scope")
@@ -366,7 +386,7 @@ public class TokenValidationTest {
                 getToken(Arrays.asList(EMAIL, USER_NAME)), new KeyInfoService("https://localhost"))
                 .checkSignature(verifier)
                 .checkIssuer("http://localhost:8080/uaa/oauth/token")
-                .checkClient((clientId) -> clientDetailsService.loadClientByClientId(clientId))
+                .checkClient((clientId) -> inMemoryMultitenantClientServices.loadClientByClientId(clientId))
                 .checkExpiry(oneSecondBeforeTheTokenExpires)
                 .checkUser((uid) -> userDb.retrieveUserById(uid))
                 .checkRequestedScopesAreGranted("acme.dev", "another.scope")
@@ -617,8 +637,8 @@ public class TokenValidationTest {
         buildRefreshTokenValidator(refreshToken, new KeyInfoService("https://localhost"))
                 .checkRequestedScopesAreGranted("some-granted-scope");
 
-        assertThat(loggingOutputStream.toString(), not(containsString("ERROR")));
-        assertThat(loggingOutputStream.toString(), not(containsString("error")));
+        assertThat(logEvents, not(hasItems(containsString("ERROR"))));
+        assertThat(logEvents, not(hasItems(containsString("error"))));
     }
 
     @Test
@@ -648,14 +668,16 @@ public class TokenValidationTest {
         expectedException.expect(InvalidTokenException.class);
         expectedException.expectMessage(expectedErrorMessage);
 
+        TokenValidation tokenValidation = buildAccessTokenValidator(
+                refreshToken,
+                new KeyInfoService("https://localhost")
+        );
+
         try {
-            buildAccessTokenValidator(refreshToken, new KeyInfoService("https://localhost"))
-                    .checkRequestedScopesAreGranted(grantedScopes);
-        } catch (Throwable t) {
-            assertThat(
-                    loggingOutputStream.toString(),
-                    containsString("ERROR --- TokenValidation: " + expectedErrorMessage));
-            throw t;
+            tokenValidation.checkRequestedScopesAreGranted(grantedScopes);
+        } catch (InvalidTokenException e) {
+            assertThat(logEvents, hasItem("ERROR -- " + expectedErrorMessage));
+            throw e; // rethrow so that expectedException can see the exception
         }
     }
 

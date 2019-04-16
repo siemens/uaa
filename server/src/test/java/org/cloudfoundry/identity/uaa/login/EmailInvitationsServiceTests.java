@@ -7,8 +7,9 @@ import org.cloudfoundry.identity.uaa.invitations.EmailInvitationsService;
 import org.cloudfoundry.identity.uaa.message.MessageService;
 import org.cloudfoundry.identity.uaa.scim.ScimUser;
 import org.cloudfoundry.identity.uaa.scim.ScimUserProvisioning;
+import org.cloudfoundry.identity.uaa.security.PollutionPreventionExtension;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
-import org.cloudfoundry.identity.uaa.zone.ClientServicesExtension;
+import org.cloudfoundry.identity.uaa.zone.MultitenantClientServices;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.hamcrest.CoreMatchers;
 import org.junit.jupiter.api.AfterEach;
@@ -55,6 +56,7 @@ import static org.springframework.security.oauth2.common.util.OAuth2Utils.CLIENT
 import static org.springframework.security.oauth2.common.util.OAuth2Utils.REDIRECT_URI;
 
 @ExtendWith(SpringExtension.class)
+@ExtendWith(PollutionPreventionExtension.class)
 @WebAppConfiguration
 @ContextConfiguration(classes = EmailInvitationsServiceTests.ContextConfiguration.class)
 @DirtiesContext(classMode=ClassMode.AFTER_EACH_TEST_METHOD)
@@ -76,7 +78,7 @@ public class EmailInvitationsServiceTests {
     ScimUserProvisioning scimUserProvisioning;
 
     @Autowired
-    ClientServicesExtension clientDetailsService;
+    MultitenantClientServices clientDetailsService;
 
 
     @BeforeEach
@@ -256,8 +258,8 @@ public class EmailInvitationsServiceTests {
         }
 
         @Bean
-        ClientServicesExtension clientDetailsService() {
-            return mock(ClientServicesExtension.class);
+        MultitenantClientServices clientDetailsService() {
+            return mock(MultitenantClientServices.class);
         }
 
         @Bean

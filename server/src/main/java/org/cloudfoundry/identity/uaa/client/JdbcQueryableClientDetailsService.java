@@ -12,8 +12,9 @@
  *******************************************************************************/
 package org.cloudfoundry.identity.uaa.client;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.cloudfoundry.identity.uaa.audit.event.EntityDeletedEvent;
 import org.cloudfoundry.identity.uaa.resources.QueryableResourceManager;
 import org.cloudfoundry.identity.uaa.resources.jdbc.AbstractQueryable;
@@ -35,7 +36,7 @@ import java.util.Map;
 public class JdbcQueryableClientDetailsService extends AbstractQueryable<ClientDetails> implements
                 QueryableResourceManager<ClientDetails> {
 
-    private static final Log logger = LogFactory.getLog(JdbcQueryableClientDetailsService.class);
+    private static final Logger logger = LoggerFactory.getLogger(JdbcQueryableClientDetailsService.class);
 
     private MultitenantJdbcClientDetailsService delegate;
 
@@ -87,7 +88,7 @@ public class JdbcQueryableClientDetailsService extends AbstractQueryable<ClientD
     @Override
     public ClientDetails delete(String id, int version, String zoneId) {
         ClientDetails client = delegate.loadClientByClientId(id, zoneId);
-        delegate.onApplicationEvent(new EntityDeletedEvent<>(client, SecurityContextHolder.getContext().getAuthentication()));
+        delegate.onApplicationEvent(new EntityDeletedEvent<>(client, SecurityContextHolder.getContext().getAuthentication(), IdentityZoneHolder.getCurrentZoneId()));
         return client;
     }
 

@@ -25,9 +25,12 @@ import org.cloudfoundry.identity.uaa.resources.jdbc.JdbcPagingListFactory;
 import org.cloudfoundry.identity.uaa.scim.ScimUserProvisioning;
 import org.cloudfoundry.identity.uaa.scim.jdbc.JdbcScimUserProvisioning;
 import org.cloudfoundry.identity.uaa.test.JdbcTestBase;
+import org.cloudfoundry.identity.uaa.util.FakePasswordEncoder;
 import org.cloudfoundry.identity.uaa.util.TimeServiceImpl;
+import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.cloudfoundry.identity.uaa.zone.MultitenantJdbcClientDetailsService;
+import org.cloudfoundry.identity.uaa.zone.beans.IdentityZoneManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,6 +48,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 public class TokenRevocationEndpointTests extends JdbcTestBase {
 
@@ -55,18 +59,23 @@ public class TokenRevocationEndpointTests extends JdbcTestBase {
     private MultitenantJdbcClientDetailsService clientService;
 
     @Before
-    public void setupForTokenRevocation() throws Exception {
+    public void setupForTokenRevocation() {
         String zoneId = IdentityZoneHolder.get().getId();
         generator = new RandomValueStringGenerator();
         String clientId = generator.generate().toLowerCase();
         client = new BaseClientDetails(clientId, "", "some.scopes", "client_credentials", "authorities");
         client.addAdditionalInformation(TOKEN_SALT, "pre-salt");
-        clientService = spy(new MultitenantJdbcClientDetailsService(jdbcTemplate));
+
+        IdentityZoneManager mockIdentityZoneManager = mock(IdentityZoneManager.class);
+        when(mockIdentityZoneManager.getCurrentIdentityZoneId()).thenReturn(IdentityZone.getUaaZoneId());
+
+        clientService = spy(new MultitenantJdbcClientDetailsService(jdbcTemplate, mockIdentityZoneManager, new FakePasswordEncoder()));
         clientService.addClientDetails(client, zoneId);
 
         ScimUserProvisioning userProvisioning = new JdbcScimUserProvisioning(
             jdbcTemplate,
-            new JdbcPagingListFactory(jdbcTemplate, limitSqlAdapter)
+            new JdbcPagingListFactory(jdbcTemplate, limitSqlAdapter),
+            new FakePasswordEncoder()
         );
         JdbcRevocableTokenProvisioning provisioning = spy(new JdbcRevocableTokenProvisioning(jdbcTemplate, limitSqlAdapter, new TimeServiceImpl()));
         endpoint = spy(new TokenRevocationEndpoint(clientService, userProvisioning, provisioning));
@@ -99,13 +108,13 @@ public class TokenRevocationEndpointTests extends JdbcTestBase {
     }
 
     @After
-    public void cleanup() throws Exception {
+    public void cleanup() {
         SecurityContextHolder.clearContext();
         IdentityZoneHolder.clear();
     }
 
     @Test
-    public void revokeTokensForClient() throws Exception {
+    public void revokeTokensForClient() {
         assertEquals("pre-salt", getClient().getAdditionalInformation().get(TOKEN_SALT));
         assertEquals(1, clientTokenCount());
         endpoint.revokeTokensForClient(client.getClientId());

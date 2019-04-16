@@ -13,11 +13,10 @@
 package org.cloudfoundry.identity.uaa.client;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
-import org.cloudfoundry.identity.uaa.zone.ClientServicesExtension;
-import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
+import org.cloudfoundry.identity.uaa.zone.MultitenantClientServices;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -38,7 +37,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 public class JdbcClientMetadataProvisioning implements ClientMetadataProvisioning {
 
-    private static final Log logger = LogFactory.getLog(JdbcClientMetadataProvisioning.class);
+    private static final Logger logger = LoggerFactory.getLogger(JdbcClientMetadataProvisioning.class);
 
 
     private static final String CLIENT_METADATA_FIELDS = "client_id, identity_zone_id, show_on_home_page, app_launch_url, app_icon, additional_information, created_by";
@@ -48,10 +47,10 @@ public class JdbcClientMetadataProvisioning implements ClientMetadataProvisionin
     private static final String CLIENT_METADATA_UPDATE = "update oauth_client_details set " + CLIENT_METADATA_UPDATE_FIELDS.replace(",", "=?,") + "=?" + " where client_id=? and identity_zone_id=?";
 
     private JdbcTemplate template;
-    private ClientServicesExtension clientDetailsService;
+    private MultitenantClientServices clientDetailsService;
     private final RowMapper<ClientMetadata> mapper = new ClientMetadataRowMapper();
 
-    JdbcClientMetadataProvisioning(ClientServicesExtension clientDetailsService,
+    JdbcClientMetadataProvisioning(MultitenantClientServices clientDetailsService,
                                    JdbcTemplate template) {
         Assert.notNull(template);
         Assert.notNull(clientDetailsService);
@@ -79,7 +78,7 @@ public class JdbcClientMetadataProvisioning implements ClientMetadataProvisionin
     public ClientMetadata update(ClientMetadata resource, String zoneId) {
         logger.debug("Updating metadata for client: " + resource.getClientId());
 
-        updateClientNameIfNotEmpty(resource, IdentityZoneHolder.get().getId());
+        updateClientNameIfNotEmpty(resource, zoneId);
         int updated = template.update(CLIENT_METADATA_UPDATE, ps -> {
             int pos = 1;
             ps.setBoolean(pos++, resource.isShowOnHomePage());

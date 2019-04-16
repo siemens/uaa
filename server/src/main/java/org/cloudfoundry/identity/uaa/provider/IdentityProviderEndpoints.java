@@ -13,8 +13,8 @@
  */
 package org.cloudfoundry.identity.uaa.provider;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.cloudfoundry.identity.uaa.authentication.manager.DynamicLdapAuthenticationManager;
 import org.cloudfoundry.identity.uaa.authentication.manager.LdapLoginAuthenticationManager;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
@@ -69,7 +69,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.PUT;
 @RestController
 public class IdentityProviderEndpoints implements ApplicationEventPublisherAware {
 
-    protected static Log logger = LogFactory.getLog(IdentityProviderEndpoints.class);
+    protected static Logger logger = LoggerFactory.getLogger(IdentityProviderEndpoints.class);
 
     private final IdentityProviderProvisioning identityProviderProvisioning;
     private final ScimGroupExternalMembershipManager scimGroupExternalMembershipManager;
@@ -134,7 +134,7 @@ public class IdentityProviderEndpoints implements ApplicationEventPublisherAware
         IdentityProvider existing = identityProviderProvisioning.retrieve(id, IdentityZoneHolder.get().getId());
         if (publisher!=null && existing!=null) {
             existing.setSerializeConfigRaw(rawConfig);
-            publisher.publishEvent(new EntityDeletedEvent<>(existing, SecurityContextHolder.getContext().getAuthentication()));
+            publisher.publishEvent(new EntityDeletedEvent<>(existing, SecurityContextHolder.getContext().getAuthentication(), IdentityZoneHolder.getCurrentZoneId()));
             return new ResponseEntity<>(existing, OK);
         } else {
             return new ResponseEntity<>(UNPROCESSABLE_ENTITY);

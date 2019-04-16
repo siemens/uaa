@@ -80,7 +80,7 @@ public class AuthzAuthenticationManager implements AuthenticationManager, Applic
 
         if (user == null) {
             logger.debug("No user named '" + req.getName() + "' was found for origin:"+ origin);
-            publish(new UserNotFoundEvent(req));
+            publish(new UserNotFoundEvent(req, IdentityZoneHolder.getCurrentZoneId()));
         } else {
             if (!accountLoginPolicy.isAllowed(user, req)) {
                 logger.warn("Login policy rejected authentication for " + user.getUsername() + ", " + user.getId()
@@ -94,13 +94,13 @@ public class AuthzAuthenticationManager implements AuthenticationManager, Applic
 
             if (!passwordMatches) {
                 logger.debug("Password did not match for user " + req.getName());
-                publish(new IdentityProviderAuthenticationFailureEvent(req, req.getName(), OriginKeys.UAA));
-                publish(new UserAuthenticationFailureEvent(user, req));
+                publish(new IdentityProviderAuthenticationFailureEvent(req, req.getName(), OriginKeys.UAA, IdentityZoneHolder.getCurrentZoneId()));
+                publish(new UserAuthenticationFailureEvent(user, req, IdentityZoneHolder.getCurrentZoneId()));
             } else {
                 logger.debug("Password successfully matched for userId["+user.getUsername()+"]:"+user.getId());
 
                 if (!(allowUnverifiedUsers && user.isLegacyVerificationBehavior()) && !user.isVerified()) {
-                    publish(new UnverifiedUserAuthenticationEvent(user, req));
+                    publish(new UnverifiedUserAuthenticationEvent(user, req, IdentityZoneHolder.getCurrentZoneId()));
                     logger.debug("Account not verified: " + user.getId());
                     throw new AccountNotVerifiedException("Account not verified");
                 }
@@ -128,7 +128,7 @@ public class AuthzAuthenticationManager implements AuthenticationManager, Applic
                     success.setRequiresPasswordChange(true);
                 }
 
-                publish(new IdentityProviderAuthenticationSuccessEvent(user, success, OriginKeys.UAA));
+                publish(new IdentityProviderAuthenticationSuccessEvent(user, success, OriginKeys.UAA, IdentityZoneHolder.getCurrentZoneId()));
                 return success;
             }
         }
@@ -140,7 +140,7 @@ public class AuthzAuthenticationManager implements AuthenticationManager, Applic
 
     protected int getPasswordExpiresInMonths() {
         int result = 0;
-        IdentityProvider provider = providerProvisioning.retrieveByOrigin(OriginKeys.UAA, IdentityZoneHolder.get().getId());
+        IdentityProvider provider = providerProvisioning.retrieveByOriginIgnoreActiveFlag(OriginKeys.UAA, IdentityZoneHolder.get().getId());
         if (provider!=null) {
             UaaIdentityProviderDefinition idpDefinition = ObjectUtils.castInstance(provider.getConfig(),UaaIdentityProviderDefinition.class);
             if (idpDefinition!=null) {
@@ -154,7 +154,7 @@ public class AuthzAuthenticationManager implements AuthenticationManager, Applic
 
     protected Date getPasswordNewerThan() {
         Date result = null;
-        IdentityProvider provider = providerProvisioning.retrieveByOrigin(OriginKeys.UAA, IdentityZoneHolder.get().getId());
+        IdentityProvider provider = providerProvisioning.retrieveByOriginIgnoreActiveFlag(OriginKeys.UAA, IdentityZoneHolder.get().getId());
         if(provider != null) {
             UaaIdentityProviderDefinition idpDefinition = ObjectUtils.castInstance(provider.getConfig(),UaaIdentityProviderDefinition.class);
             if(idpDefinition != null && idpDefinition.getPasswordPolicy() != null) {

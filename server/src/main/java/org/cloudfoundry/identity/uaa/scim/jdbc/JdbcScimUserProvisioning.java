@@ -12,8 +12,8 @@
  *******************************************************************************/
 package org.cloudfoundry.identity.uaa.scim.jdbc;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.cloudfoundry.identity.uaa.audit.event.SystemDeletable;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.resources.ResourceMonitor;
@@ -41,7 +41,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementSetter;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.Assert;
 
@@ -65,10 +64,10 @@ import static org.springframework.util.StringUtils.hasText;
 public class JdbcScimUserProvisioning extends AbstractQueryable<ScimUser>
     implements ScimUserProvisioning, ResourceMonitor<ScimUser>, SystemDeletable {
 
-    private final Log logger = LogFactory.getLog(getClass());
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Override
-    public Log getLogger() {
+    public Logger getLogger() {
         return logger;
     }
 
@@ -84,8 +83,6 @@ public class JdbcScimUserProvisioning extends AbstractQueryable<ScimUser>
     public static final String VERIFY_USER_SQL = "update users set verified=? where id=? and identity_zone_id=?";
 
     public static final String DELETE_USER_SQL = "delete from users where id=? and identity_zone_id=?";
-
-    public static final String UPDATE_PASSWD_LASTMODIFIED_SQL = "update users set passwd_lastmodified=? where id=? and identity_zone_id=?";
 
     public static final String CHANGE_PASSWORD_SQL = "update users set lastModified=?, password=?, passwd_lastmodified=? where id=? and identity_zone_id=?";
 
@@ -111,7 +108,7 @@ public class JdbcScimUserProvisioning extends AbstractQueryable<ScimUser>
 
     protected final JdbcTemplate jdbcTemplate;
 
-    private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
 
     private boolean deactivateOnDelete = true;
 
@@ -121,11 +118,15 @@ public class JdbcScimUserProvisioning extends AbstractQueryable<ScimUser>
 
     private TimeService timeService = new TimeServiceImpl();
 
-    public JdbcScimUserProvisioning(JdbcTemplate jdbcTemplate, JdbcPagingListFactory pagingListFactory) {
+    public JdbcScimUserProvisioning(
+            JdbcTemplate jdbcTemplate,
+            JdbcPagingListFactory pagingListFactory,
+            final PasswordEncoder passwordEncoder) {
         super(jdbcTemplate, pagingListFactory, mapper);
         Assert.notNull(jdbcTemplate);
         this.jdbcTemplate = jdbcTemplate;
         setQueryConverter(new SimpleSearchQueryConverter());
+        this.passwordEncoder = passwordEncoder;
     }
 
     public void setTimeService(TimeService timeService) {
@@ -135,8 +136,7 @@ public class JdbcScimUserProvisioning extends AbstractQueryable<ScimUser>
     @Override
     public ScimUser retrieve(String id, String zoneId) {
         try {
-            ScimUser u = jdbcTemplate.queryForObject(USER_BY_ID_QUERY, mapper, id, zoneId);
-            return u;
+            return jdbcTemplate.queryForObject(USER_BY_ID_QUERY, mapper, id, zoneId);
         } catch (EmptyResultDataAccessException e) {
             throw new ScimResourceNotFoundException("User " + id + " does not exist");
         }
@@ -416,16 +416,6 @@ public class JdbcScimUserProvisioning extends AbstractQueryable<ScimUser>
 
     public void setDeactivateOnDelete(boolean deactivateOnDelete) {
         this.deactivateOnDelete = deactivateOnDelete;
-    }
-
-    /**
-     * The encoder used to hash passwords before storing them in the database.
-     *
-     * Defaults to a {@link BCryptPasswordEncoder}.
-     */
-    public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
-        Assert.notNull(passwordEncoder, "passwordEncoder cannot be null");
-        this.passwordEncoder = passwordEncoder;
     }
 
     /**

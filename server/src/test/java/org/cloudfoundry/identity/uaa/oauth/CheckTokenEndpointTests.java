@@ -28,12 +28,15 @@ import org.cloudfoundry.identity.uaa.oauth.token.Claims;
 import org.cloudfoundry.identity.uaa.oauth.token.RevocableToken;
 import org.cloudfoundry.identity.uaa.oauth.token.RevocableTokenProvisioning;
 import org.cloudfoundry.identity.uaa.oauth.token.TokenConstants;
+import org.cloudfoundry.identity.uaa.test.TestUtils;
 import org.cloudfoundry.identity.uaa.user.UaaAuthority;
 import org.cloudfoundry.identity.uaa.user.UaaUser;
 import org.cloudfoundry.identity.uaa.user.UaaUserDatabase;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.util.TimeService;
 import org.cloudfoundry.identity.uaa.zone.*;
+import org.cloudfoundry.identity.uaa.zone.beans.IdentityZoneManager;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -71,7 +74,7 @@ public class CheckTokenEndpointTests {
     private CheckTokenEndpoint endpoint = new CheckTokenEndpoint();
     private OAuth2Authentication authentication;
     private UaaTokenServices tokenServices;
-    private InMemoryClientServicesExtentions clientDetailsService = new InMemoryClientServicesExtentions();
+    private InMemoryMultitenantClientServices clientDetailsService;
     private ApprovalStore approvalStore = new InMemoryApprovalStore();
 
     private String userId = "12345";
@@ -175,7 +178,17 @@ public class CheckTokenEndpointTests {
 
     @Before
     public void setUp() throws Exception {
+        IdentityZoneManager mockIdentityZoneManager = mock(IdentityZoneManager.class);
+        when(mockIdentityZoneManager.getCurrentIdentityZoneId()).thenReturn(IdentityZone.getUaaZoneId());
+        clientDetailsService = new InMemoryMultitenantClientServices(mockIdentityZoneManager);
+
+        TestUtils.resetIdentityZoneHolder(null);
         setUp(useOpaque);
+    }
+
+    @After
+    public void after() {
+        TestUtils.resetIdentityZoneHolder(null);
     }
 
     public void setUp(boolean opaque) throws Exception {
@@ -231,7 +244,7 @@ public class CheckTokenEndpointTests {
 
         configureDefaultZoneKeys(Collections.singletonMap("testKey", signerKey));
         IdentityZoneHolder.set(defaultZone);
-        when(zoneProvisioning.retrieve("uaa")).thenReturn(defaultZone);
+        when(zoneProvisioning.retrieve(IdentityZone.getUaaZoneId())).thenReturn(defaultZone);
         Date oneSecondAgo = new Date(nowMillis - 1000);
         Date thirtySecondsAhead = new Date(nowMillis + 30000);
 

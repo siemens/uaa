@@ -31,8 +31,8 @@ import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 
 import com.google.zxing.WriterException;
 import com.warrenstrange.googleauth.GoogleAuthenticatorException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
@@ -65,7 +65,7 @@ public class TotpMfaEndpoint implements ApplicationEventPublisherAware {
 
     private UserGoogleMfaCredentialsProvisioning mfaCredentialsProvisioning;
     private MfaProviderProvisioning mfaProviderProvisioning;
-    private Log logger = LogFactory.getLog(TotpMfaEndpoint.class);
+    private Logger logger = LoggerFactory.getLogger(TotpMfaEndpoint.class);
 
     private String mfaCompleteUrl = "/login/mfa/completed";
     private ApplicationEventPublisher eventPublisher;
@@ -152,16 +152,16 @@ public class TotpMfaEndpoint implements ApplicationEventPublisherAware {
                 Set<String> authMethods = new HashSet<>(uaaAuth.getAuthenticationMethods());
                 authMethods.addAll(Arrays.asList("otp", "mfa"));
                 uaaAuth.setAuthenticationMethods(authMethods);
-                publish(new MfaAuthenticationSuccessEvent(getUaaUser(uaaPrincipal), uaaAuth, getMfaProvider().getType().toValue()));
+                publish(new MfaAuthenticationSuccessEvent(getUaaUser(uaaPrincipal), uaaAuth, getMfaProvider().getType().toValue(), IdentityZoneHolder.getCurrentZoneId()));
                 sessionStatus.setComplete();
                 return new ModelAndView(new RedirectView(mfaCompleteUrl, true));
             }
             logger.debug("Code authorization failed for user: " + uaaPrincipal.getId());
-            publish(new MfaAuthenticationFailureEvent(getUaaUser(uaaPrincipal), uaaAuth, getMfaProvider().getType().toValue()));
+            publish(new MfaAuthenticationFailureEvent(getUaaUser(uaaPrincipal), uaaAuth, getMfaProvider().getType().toValue(), IdentityZoneHolder.getCurrentZoneId()));
             model.addAttribute("error", "Incorrect code, please try again.");
         } catch (NumberFormatException | GoogleAuthenticatorException e) {
             logger.debug("Error validating the code for user: " + uaaPrincipal.getId() + ". Error: " + e.getMessage());
-            publish(new MfaAuthenticationFailureEvent(getUaaUser(uaaPrincipal), uaaAuth, getMfaProvider().getType().toValue()));
+            publish(new MfaAuthenticationFailureEvent(getUaaUser(uaaPrincipal), uaaAuth, getMfaProvider().getType().toValue(), IdentityZoneHolder.getCurrentZoneId()));
             model.addAttribute("error", "Incorrect code, please try again.");
         }
         return renderEnterCodePage(model, uaaPrincipal);

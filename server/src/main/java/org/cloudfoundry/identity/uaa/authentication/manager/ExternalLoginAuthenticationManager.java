@@ -38,8 +38,8 @@ import org.cloudfoundry.identity.uaa.user.VerifiableUser;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanNameAware;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
@@ -69,7 +69,7 @@ import static java.util.Optional.ofNullable;
 public class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> implements AuthenticationManager, ApplicationEventPublisherAware, BeanNameAware {
 
     public static final String USER_ATTRIBUTE_PREFIX = "user.attribute.";
-    protected final Log logger = LogFactory.getLog(getClass());
+    protected final Logger logger = LoggerFactory.getLogger(getClass());
 
     private ApplicationEventPublisher eventPublisher;
 
@@ -171,7 +171,7 @@ public class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> i
         }
         UaaAuthentication success = new UaaAuthentication(new UaaPrincipal(user), user.getAuthorities(), uaaAuthenticationDetails);
         populateAuthenticationAttributes(success, request, authenticationData);
-        publish(new IdentityProviderAuthenticationSuccessEvent(user, success, user.getOrigin()));
+        publish(new IdentityProviderAuthenticationSuccessEvent(user, success, user.getOrigin(), IdentityZoneHolder.getCurrentZoneId()));
         return success;
     }
 
