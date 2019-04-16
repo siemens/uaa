@@ -177,13 +177,13 @@ class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
         String redirect = "http://localhost/redirect/cf";
         MockHttpServletRequestBuilder getAuthCode = get("/oauth/authorize")
-            .header("Authorization", "Bearer " + cfAccessToken)
-            .param(RESPONSE_TYPE, "code")
-            .param(CLIENT_ID, "login")
-            .param(REDIRECT_URI, redirect)
-            .param(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE)
-			.param(PkceValidationService.CODE_CHALLENGE_METHOD, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256)
-            .param(STATE, new RandomValueStringGenerator().generate());
+                .header("Authorization", "Bearer " + cfAccessToken)
+                .param(RESPONSE_TYPE, "code")
+                .param(CLIENT_ID, "login")
+                .param(REDIRECT_URI, redirect)
+                .param(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE)
+                .param(PkceValidationService.CODE_CHALLENGE_METHOD, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256)
+                .param(STATE, new RandomValueStringGenerator().generate());
 
         MockHttpServletResponse authCodeResponse = mockMvc.perform(getAuthCode)
                 .andExpect(status().isFound())
@@ -197,25 +197,25 @@ class TokenEndpointDocs extends AbstractTokenMockMvcTests {
         Snippet headerFields = requestHeaders(CLIENT_BASIC_AUTH_HEADER);
 
         MockHttpServletRequestBuilder postForToken = post("/oauth/token")
-            .header(HttpHeaders.AUTHORIZATION, "Basic "+ clientAuthBase64)
-            .accept(APPLICATION_JSON)
-            .contentType(APPLICATION_FORM_URLENCODED)
-            .param(CLIENT_ID, "login")
-            .param("client_secret", "loginsecret")
-            .param(GRANT_TYPE, GRANT_TYPE_AUTHORIZATION_CODE)
-            .param("code", code)
-            .param(REQUEST_TOKEN_FORMAT, OPAQUE.getStringValue())
-            .param(PkceValidationService.CODE_VERIFIER, UaaTestAccounts.CODE_VERIFIER)
-            .param(REDIRECT_URI, redirect);
+                .header(HttpHeaders.AUTHORIZATION, "Basic "+ clientAuthBase64)
+                .accept(APPLICATION_JSON)
+                .contentType(APPLICATION_FORM_URLENCODED)
+                .param(CLIENT_ID, "login")
+                .param("client_secret", "loginsecret")
+                .param(GRANT_TYPE, GRANT_TYPE_AUTHORIZATION_CODE)
+                .param("code", code)
+                .param(REQUEST_TOKEN_FORMAT, OPAQUE.getStringValue())
+                .param(PkceValidationService.CODE_VERIFIER, UaaTestAccounts.CODE_VERIFIER)
+                .param(REDIRECT_URI, redirect);
 
         Snippet requestParameters = requestParameters(
-            clientIdParameter,
-            parameterWithName(REDIRECT_URI).description("redirection URI to which the authorization server will send the user-agent back once access is granted (or denied)").attributes(SnippetUtils.constraints.value("Required if provided on authorization request"), SnippetUtils.type.value(STRING)),
-            parameterWithName("code").description(codeDescription).attributes(SnippetUtils.constraints.value("Required"), SnippetUtils.type.value(STRING)),
-            grantTypeParameter.description("the type of authentication being used to obtain the token, in this case `authorization_code`"),
-            clientSecretParameter,
-            codeVerifier,
-            opaqueFormatParameter
+                clientIdParameter,
+                parameterWithName(REDIRECT_URI).description("redirection URI to which the authorization server will send the user-agent back once access is granted (or denied)").attributes(SnippetUtils.constraints.value("Required if provided on authorization request"), SnippetUtils.type.value(STRING)),
+                parameterWithName("code").description(codeDescription).attributes(SnippetUtils.constraints.value("Required"), SnippetUtils.type.value(STRING)),
+                grantTypeParameter.description("the type of authentication being used to obtain the token, in this case `authorization_code`"),
+                clientSecretParameter,
+                codeVerifier,
+                opaqueFormatParameter
         );
 
         Snippet responseFields = responseFields(
