@@ -55,7 +55,7 @@ public class AuthorizationCodeGrantIntegrationTests {
         testSuccessfulAuthorizationCodeFlow_Internal();
         testSuccessfulAuthorizationCodeFlow_Internal();
     }
-    
+
     @Test
     public void testSuccessfulAuthorizationCodeFlowWithPkceS256() throws Exception {
         testAuthorizationCodeFlowWithPkce_Internal(UaaTestAccounts.CODE_CHALLENGE, 
