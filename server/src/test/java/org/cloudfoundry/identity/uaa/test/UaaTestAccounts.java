@@ -52,6 +52,12 @@ public class UaaTestAccounts implements TestAccounts {
     public static final String DEFAULT_PASSWORD = "koala";
 
     public static final String DEFAULT_USERNAME = "marissa";
+    
+    //PKCE test data
+    public static final String CODE_CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+    public static final String CODE_CHALLENGE_METHOD_S256 = "S256";
+    public static final String CODE_VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+    // End of PKCE test data
 
     private static final Log logger = LogFactory.getLog(UaaTestAccounts.class);
 

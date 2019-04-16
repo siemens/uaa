@@ -15,10 +15,12 @@
 package org.cloudfoundry.identity.uaa.login;
 
 import org.apache.commons.codec.binary.Base64;
+import org.cloudfoundry.identity.uaa.TestSpringContext;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.mock.token.AbstractTokenMockMvcTests;
 import org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils;
+import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
 import org.cloudfoundry.identity.uaa.oauth.token.CompositeToken;
 import org.cloudfoundry.identity.uaa.oauth.token.TokenConstants;
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
@@ -29,17 +31,24 @@ import org.cloudfoundry.identity.uaa.scim.ScimUser;
 import org.cloudfoundry.identity.uaa.scim.ScimUserProvisioning;
 import org.cloudfoundry.identity.uaa.scim.jdbc.JdbcScimUserProvisioning;
 import org.cloudfoundry.identity.uaa.test.SnippetUtils;
+import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
+import org.cloudfoundry.identity.uaa.test.TestClient;
 import org.cloudfoundry.identity.uaa.user.UaaAuthority;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneSwitchingFilter;
+import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.restdocs.JUnitRestDocumentation;
 import org.springframework.restdocs.headers.HeaderDescriptor;
 import org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders;
 import org.springframework.restdocs.payload.FieldDescriptor;
@@ -48,22 +57,25 @@ import org.springframework.restdocs.snippet.Snippet;
 import org.springframework.security.oauth2.common.OAuth2RefreshToken;
 import org.springframework.security.oauth2.common.util.RandomValueStringGenerator;
 import org.springframework.security.oauth2.provider.client.BaseClientDetails;
+import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.net.URLEncoder;
 import java.util.Arrays;
 
-import static org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils.MockSecurityContext;
-import static org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils.getClientCredentialsOAuthAccessToken;
-import static org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils.getMfaCodeFromCredentials;
-import static org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils.getUserOAuthAccessToken;
+import static org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils.*;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.*;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TokenFormat.OPAQUE;
 import static org.cloudfoundry.identity.uaa.provider.saml.idp.SamlTestUtils.createLocalSamlIdpDefinition;
@@ -76,6 +88,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
 import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.post;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
@@ -85,17 +98,16 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWit
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.request.RequestDocumentation.requestParameters;
-import static org.springframework.security.oauth2.common.util.OAuth2Utils.CLIENT_ID;
-import static org.springframework.security.oauth2.common.util.OAuth2Utils.GRANT_TYPE;
-import static org.springframework.security.oauth2.common.util.OAuth2Utils.REDIRECT_URI;
-import static org.springframework.security.oauth2.common.util.OAuth2Utils.RESPONSE_TYPE;
-import static org.springframework.security.oauth2.common.util.OAuth2Utils.SCOPE;
-import static org.springframework.security.oauth2.common.util.OAuth2Utils.STATE;
+import static org.springframework.restdocs.snippet.Attributes.key;
+import static org.springframework.restdocs.templates.TemplateFormats.markdown;
+import static org.springframework.security.oauth2.common.util.OAuth2Utils.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@RunWith(SpringJUnit4ClassRunner.class)
+@ActiveProfiles("default")
+@WebAppConfiguration
+@ContextConfiguration(classes = TestSpringContext.class)
 public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
     private final ParameterDescriptor grantTypeParameter = parameterWithName(GRANT_TYPE).required().type(STRING).description("OAuth 2 grant type");
@@ -105,7 +117,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
     private final ParameterDescriptor opaqueFormatParameter = parameterWithName(REQUEST_TOKEN_FORMAT).optional(null).type(STRING).description("<small><mark>UAA 3.3.0</mark></small> Can be set to `"+ OPAQUE.getStringValue() +"` to retrieve an opaque and revocable token.");
     private final ParameterDescriptor scopeParameter = parameterWithName(SCOPE).optional(null).type(STRING).description("The list of scopes requested for the token. Use when you wish to reduce the number of scopes the token will have.");
     private final ParameterDescriptor loginHintParameter = parameterWithName("login_hint").optional(null).type(STRING).description("<small><mark>UAA 4.19.0</mark></small> Indicates the identity provider to be used. The passed string has to be a URL-Encoded JSON Object, containing the field `origin` with value as `origin_key` of an identity provider. Note that this identity provider must support the grant type `password`.");
-
+    private final ParameterDescriptor codeVerifier = parameterWithName(PkceValidationService.CODE_VERIFIER).description("<small><mark>UAA 4.26.0</mark></small> [PKCE](https://tools.ietf.org/html/rfc7636) Code Verifier. A `code_verifier` parameter must be provided if a `code_challenge` parameter was present in the previous call to `/oauth/authorize`. The `code_verifier` must match the used `code_challenge` (according to the selected `code_challenge_method`)").attributes(key("constraints").value("Optional"), key("type").value(STRING));
     private final FieldDescriptor accessTokenFieldDescriptor = fieldWithPath("access_token").description("An OAuth2 [access token](https://tools.ietf.org/html/rfc6749#section-1.4). When `token_format=opaque` is requested this value will be a random string that can only be validated using the UAA's `/check_token` or `/introspect` endpoints. When `token_format=jwt` is requested, this token will be a [JSON Web Token](https://tools.ietf.org/html/rfc7519) suitable for offline validation by OAuth2 Resource Servers.");
     private final FieldDescriptor idTokenFieldDescriptor = fieldWithPath("id_token").description("An OpenID Connect [ID token](http://openid.net/specs/openid-connect-core-1_0.html#IDToken). This portion of the token response is only returned when clients are configured with the scope `openid`, the `response_type` includes `id_token`, and the user has granted approval to the client for the `openid` scope.");
     private final FieldDescriptor refreshTokenFieldDescriptor = fieldWithPath("refresh_token").description("An OAuth2 [refresh token](https://tools.ietf.org/html/rfc6749#section-6). Clients typically use the refresh token to obtain a new access token without the need for the user to authenticate again. They do this by calling `/oauth/token` with `grant_type=refresh_token`. See [here](#refresh-token) for more information. A refresh token will only be issued to [clients](#clients) that have `refresh_token` in their list of `authorized_grant_types`.");
@@ -138,6 +150,26 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
     private ScimUser user;
 
+    @Rule
+    public JUnitRestDocumentation restDocumentation = new JUnitRestDocumentation("build/generated-snippets");
+
+    @Autowired
+    WebApplicationContext webApplicationContext;
+    @Autowired
+    FilterChainProxy springSecurityFilterChain;
+
+    @Before
+    public void setUpContext() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(this.webApplicationContext)
+                .addFilter(springSecurityFilterChain)
+                .apply(documentationConfiguration(restDocumentation)
+                        .uris().withPort(80).and()
+                        .snippets()
+                        .withTemplateFormat(markdown()))
+                .build();
+        testClient = new TestClient(mockMvc);
+    }
+
     @Before
     public void createTestUser() throws Exception {
         if (user == null) {
@@ -145,11 +177,16 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
         }
     }
 
+    @After
+    public void cleanup() {
+        super.cleanup();
+    }
+
     @Test
     public void getTokenUsingAuthCodeGrant() throws Exception {
 
         String cfAccessToken = getUserOAuthAccessToken(
-            getMockMvc(),
+            mockMvc,
             "cf",
             "",
             user.getUserName(),
@@ -163,9 +200,11 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             .param(RESPONSE_TYPE, "code")
             .param(CLIENT_ID, "login")
             .param(REDIRECT_URI, redirect)
-            .param(STATE, new RandomValueStringGenerator().generate());
+            .param(STATE, new RandomValueStringGenerator().generate())
+            .param(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE)
+			.param(PkceValidationService.CODE_CHALLENGE_METHOD, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256);
 
-        MockHttpServletResponse authCodeResponse = getMockMvc().perform(getAuthCode)
+        MockHttpServletResponse authCodeResponse = mockMvc.perform(getAuthCode)
             .andExpect(status().isFound())
             .andReturn()
             .getResponse();
@@ -185,7 +224,8 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             .param(GRANT_TYPE, GRANT_TYPE_AUTHORIZATION_CODE)
             .param("code", code)
             .param(REQUEST_TOKEN_FORMAT, OPAQUE.getStringValue())
-            .param(REDIRECT_URI, redirect);
+            .param(REDIRECT_URI, redirect)
+            .param(PkceValidationService.CODE_VERIFIER, UaaTestAccounts.CODE_VERIFIER);
 
         Snippet requestParameters = requestParameters(
             clientIdParameter,
@@ -193,7 +233,8 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             parameterWithName("code").description(codeDescription).attributes(SnippetUtils.constraints.value("Required"), SnippetUtils.type.value(STRING)),
             grantTypeParameter.description("the type of authentication being used to obtain the token, in this case `authorization_code`"),
             clientSecretParameter,
-            opaqueFormatParameter
+            opaqueFormatParameter,
+            codeVerifier
         );
 
         Snippet responseFields = responseFields(
@@ -206,7 +247,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             jtiFieldDescriptor
         );
 
-        getMockMvc().perform(postForToken)
+        mockMvc.perform(postForToken)
             .andExpect(status().isOk())
             .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), headerFields, requestParameters, responseFields));
     }
@@ -237,7 +278,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             jtiFieldDescriptor
         );
 
-        getMockMvc().perform(postForToken)
+        mockMvc.perform(postForToken)
             .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestParameters, responseFields));
     }
 
@@ -267,7 +308,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             jtiFieldDescriptor
         );
 
-        getMockMvc().perform(postForToken)
+        mockMvc.perform(postForToken)
                 .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestParameters, requestHeaders, responseFields));
     }
 
@@ -282,7 +323,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             .param("username", user.getUserName())
             .param("password", user.getPassword())
             .param(REQUEST_TOKEN_FORMAT, OPAQUE.getStringValue())
-            .param("login_hint", URLEncoder.encode("{\"origin\":\"uaa\"}","utf-8"));
+            .param("login_hint", "{\"origin\":\"uaa\"}");
 
         Snippet requestParameters = requestParameters(
             clientIdParameter,
@@ -304,7 +345,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             jtiFieldDescriptor
         );
 
-        getMockMvc().perform(postForToken)
+        mockMvc.perform(postForToken)
             .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestParameters, responseFields));
     }
 
@@ -323,7 +364,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             .param("password", user.getPassword())
             .param("mfaCode", String.valueOf(getMfaCodeFromCredentials(credentials)))
             .param(REQUEST_TOKEN_FORMAT, OPAQUE.getStringValue())
-            .param("login_hint", URLEncoder.encode("{\"origin\":\"uaa\"}","utf-8"));
+            .param("login_hint", "{\"origin\":\"uaa\"}");
 
         Snippet requestParameters = requestParameters(
             clientIdParameter,
@@ -346,13 +387,13 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             jtiFieldDescriptor
         );
 
-        getMockMvc().perform(postForToken)
+        mockMvc.perform(postForToken)
             .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestParameters, responseFields));
     }
 
     @Test
     public void getTokenUsingUserTokenGrant() throws Exception {
-        String token = MockMvcUtils.getUserOAuthAccessToken(getMockMvc(),
+        String token = MockMvcUtils.getUserOAuthAccessToken(mockMvc,
                                                             "oauth_showcase_user_token",
                                                             "secret",
                                                             user.getUserName(),
@@ -389,7 +430,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             jtiFieldDescriptor
         );
 
-        getMockMvc().perform(postForToken)
+        mockMvc.perform(postForToken)
             .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestHeaders, requestParameters, responseFields));
     }
 
@@ -405,10 +446,10 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
         String fullPath = "/uaa/oauth/token/alias/"+subdomain+".cloudfoundry-saml-login";
         String origin = subdomain + ".cloudfoundry-saml-login";
 
-        MockMvcUtils.IdentityZoneCreationResult zone = MockMvcUtils.createOtherIdentityZoneAndReturnResult(subdomain, getMockMvc(), getWebApplicationContext(),null);
+        MockMvcUtils.IdentityZoneCreationResult zone = MockMvcUtils.createOtherIdentityZoneAndReturnResult(subdomain, mockMvc, this.webApplicationContext,null);
 
         //create an actual IDP, so we can fetch metadata
-        String idpMetadata = MockMvcUtils.getIDPMetaData(getMockMvc(), subdomain);
+        String idpMetadata = MockMvcUtils.getIDPMetaData(mockMvc, subdomain);
 
         //create an IDP in the default zone
         SamlIdentityProviderDefinition idpDef = createLocalSamlIdpDefinition(origin, zone.getIdentityZone().getId(), idpMetadata);
@@ -420,8 +461,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
         provider.setOriginKey(origin);
 
         IdentityZoneHolder.set(zone.getIdentityZone());
-        getWebApplicationContext().getBean(JdbcIdentityProviderProvisioning.class).create(provider, zone.getIdentityZone().getId());
-//        getWebApplicationContext().getBean(ZoneAwareIdpMetadataManager.class).refreshAllProviders();
+        identityProviderProvisioning.create(provider, zone.getIdentityZone().getId());
         IdentityZoneHolder.clear();
 
         String assertion = samlTestUtils.mockAssertionEncoded(subdomain + ".cloudfoundry-saml-login",
@@ -475,7 +515,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             jtiFieldDescriptor
         );
 
-        getMockMvc().perform(post)
+        mockMvc.perform(post)
             .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestParameters, responseFields))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.access_token").exists())
@@ -514,14 +554,13 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             jtiFieldDescriptor
         );
 
-        getMockMvc().perform(postForToken)
+        mockMvc.perform(postForToken)
             .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestParameters, requestHeaders, responseFields));
     }
 
     @Test
     public void getTokenUsingPasscode() throws Exception {
-        ScimUserProvisioning userProvisioning = getWebApplicationContext().getBean(JdbcScimUserProvisioning.class);
-        ScimUser marissa = userProvisioning.query("username eq \"marissa\" and origin eq \"uaa\"", IdentityZoneHolder.get().getId()).get(0);
+        ScimUser marissa = jdbcScimUserProvisioning.query("username eq \"marissa\" and origin eq \"uaa\"", IdentityZoneHolder.get().getId()).get(0);
         UaaPrincipal uaaPrincipal = new UaaPrincipal(marissa.getId(), marissa.getUserName(), marissa.getPrimaryEmail(), marissa.getOrigin(), marissa.getExternalId(), IdentityZoneHolder.get().getId());
         UaaAuthentication principal = new UaaAuthentication(uaaPrincipal, Arrays.asList(UaaAuthority.fromAuthorities("uaa.user")), null);
 
@@ -536,7 +575,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             .session(session);
 
         String passcode = JsonUtils.readValue(
-            getMockMvc().perform(get)
+            mockMvc.perform(get)
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(),
             String.class);
@@ -568,7 +607,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
         );
 
         Snippet requestHeaders = requestHeaders(headerWithName("Authorization").description("Base64 encoded client details in the format: `Basic client_id:client_secret`"));
-        getMockMvc().perform(postForToken)
+        mockMvc.perform(postForToken)
             .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestParameters, requestHeaders, responseFields))
             .andExpect(status().isOk());
     }
@@ -586,7 +625,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             .param("password", user.getPassword())
             .param(REQUEST_TOKEN_FORMAT, OPAQUE.getStringValue());
 
-        MvcResult mvcResult = getMockMvc().perform(postForToken).andExpect(status().isOk()).andReturn();
+        MvcResult mvcResult = mockMvc.perform(postForToken).andExpect(status().isOk()).andReturn();
         OAuth2RefreshToken refreshToken = JsonUtils.readValue(mvcResult.getResponse().getContentAsString(), CompositeToken.class).getRefreshToken();
 
         MockHttpServletRequestBuilder postForRefreshToken = post("/oauth/token")
@@ -615,7 +654,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             scopeFieldDescriptorWhenUserToken,
             jtiFieldDescriptor
         );
-        getMockMvc().perform(postForRefreshToken)
+        mockMvc.perform(postForRefreshToken)
                 .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestParameters, responseFields))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -626,7 +665,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
         user = new ScimUser(null, new RandomValueStringGenerator().generate()+"@test.org", "name", "familyName");
         user.setPrimaryEmail(user.getUserName());
         user.setPassword("secr3T");
-        user = MockMvcUtils.createUser(getMockMvc(), adminToken, user);
+        user = MockMvcUtils.createUser(mockMvc, adminToken, user);
         user.setPassword("secr3T");
     }
 
@@ -634,7 +673,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
     public void getIdTokenUsingAuthCodeGrant() throws Exception {
 
         String cfAccessToken = getUserOAuthAccessToken(
-            getMockMvc(),
+            mockMvc,
             "cf",
             "",
             user.getUserName(),
@@ -650,7 +689,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             .param(REDIRECT_URI, redirect)
             .param(STATE, new RandomValueStringGenerator().generate());
 
-        MockHttpServletResponse authCodeResponse = getMockMvc().perform(getAuthCode)
+        MockHttpServletResponse authCodeResponse = mockMvc.perform(getAuthCode)
             .andExpect(status().isFound())
             .andReturn()
             .getResponse();
@@ -687,14 +726,14 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             jtiFieldDescriptor
         );
 
-        getMockMvc().perform(postForToken)
+        mockMvc.perform(postForToken)
             .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestParameters, responseFields));
     }
 
     @Test
     public void revokeAllTokens_forAUser() throws Exception {
         String adminToken =  getClientCredentialsOAuthAccessToken(
-                getMockMvc(),
+                mockMvc,
                 "admin",
                 "adminsecret",
                 "",
@@ -704,7 +743,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
 
         String userInfoToken = getUserOAuthAccessToken(
-                getMockMvc(),
+                mockMvc,
                 client.getClientId(),
                 client.getClientSecret(),
                 user.getUserName(),
@@ -725,12 +764,12 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
         MockHttpServletRequestBuilder get = RestDocumentationRequestBuilders.get("/oauth/token/revoke/user/{userId}", user.getId());
 
 
-        getMockMvc().perform(get
+        mockMvc.perform(get
                         .header("Authorization", "Bearer "+adminToken))
                         .andExpect(status().isOk())
                         .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestHeaders, pathParameters));
 
-        getMockMvc().perform(
+        mockMvc.perform(
                 get("/oauth/clients")
                         .header("Authorization", "Bearer "+userInfoToken))
                 .andExpect(status().isUnauthorized())
@@ -741,7 +780,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
     @Test
     public void revokeAllTokens_forAUserClientCombination() throws Exception {
         String adminToken =  getClientCredentialsOAuthAccessToken(
-            getMockMvc(),
+            mockMvc,
             "admin",
             "adminsecret",
             "",
@@ -752,7 +791,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
 
         String userInfoTokenToRevoke = getUserOAuthAccessToken(
-            getMockMvc(),
+            mockMvc,
             client.getClientId(),
             client.getClientSecret(),
             user.getUserName(),
@@ -760,7 +799,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             "", null, true
         );
         String userInfoTokenToRemainValid = getUserOAuthAccessToken(
-            getMockMvc(),
+            mockMvc,
             client2.getClientId(),
             client2.getClientSecret(),
             user.getUserName(),
@@ -783,7 +822,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
             parameterWithName("clientId").description("The id of the client")
         );
 
-        getMockMvc().perform(
+        mockMvc.perform(
             get("/userinfo")
                 .header("Authorization", "Bearer " + userInfoTokenToRevoke))
             .andExpect(status().isOk());
@@ -791,18 +830,18 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
         MockHttpServletRequestBuilder get = RestDocumentationRequestBuilders.get("/oauth/token/revoke/user/{userId}/client/{clientId}", user.getId(), client.getClientId());
 
-        getMockMvc().perform(get
+        mockMvc.perform(get
             .header("Authorization", "Bearer "+adminToken))
             .andExpect(status().isOk())
             .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestHeaders, pathParameters));
 
-        getMockMvc().perform(
+        mockMvc.perform(
             get("/userinfo")
                 .header("Authorization", "Bearer " + userInfoTokenToRevoke))
             .andExpect(status().isUnauthorized())
             .andExpect(content().string(containsString("\"error\":\"invalid_token\"")));
 
-        getMockMvc().perform(
+        mockMvc.perform(
             get("/userinfo")
                 .header("Authorization", "Bearer "+ userInfoTokenToRemainValid))
             .andExpect(status().isOk());
@@ -811,7 +850,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
     @Test
     public void revokeAllTokens_forAClient() throws Exception {
         String adminToken =  getClientCredentialsOAuthAccessToken(
-                getMockMvc(),
+                mockMvc,
                 "admin",
                 "adminsecret",
                 "",
@@ -821,7 +860,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
         BaseClientDetails client = createClient(adminToken, "openid", "client_credentials,password", "clients.read");
         String readClientsToken =
                 getClientCredentialsOAuthAccessToken(
-                        getMockMvc(),
+                        mockMvc,
                         client.getClientId(),
                         client.getClientSecret(),
                         null,
@@ -835,12 +874,12 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
         );
         Snippet pathParameters = pathParameters(parameterWithName("clientId").description("The id of the client"));
         MockHttpServletRequestBuilder get = RestDocumentationRequestBuilders.get("/oauth/token/revoke/client/{clientId}", client.getClientId());
-        getMockMvc().perform(get
+        mockMvc.perform(get
                 .header("Authorization", "Bearer "+ adminToken))
                 .andExpect(status().isOk())
                 .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestHeaders, pathParameters));
 
-        getMockMvc().perform(
+        mockMvc.perform(
                 get("/oauth/clients")
                 .header("Authorization", "Bearer "+readClientsToken))
                 .andExpect(status().isUnauthorized())
@@ -850,7 +889,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
     @Test
     public void revokeSingleToken() throws Exception {
         String adminToken =  getClientCredentialsOAuthAccessToken(
-                getMockMvc(),
+                mockMvc,
                 "admin",
                 "adminsecret",
                 "",
@@ -862,7 +901,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
 
         String userInfoToken = getUserOAuthAccessToken(
-                getMockMvc(),
+                mockMvc,
                 client.getClientId(),
                 client.getClientSecret(),
                 user.getUserName(),
@@ -890,7 +929,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
         MockHttpServletRequestBuilder delete = RestDocumentationRequestBuilders.delete("/oauth/token/revoke/{tokenId}", userInfoToken);
 
-        getMockMvc().perform(delete
+        mockMvc.perform(delete
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + userInfoToken))
                 .andExpect(status().isOk())
                 .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()), requestHeaders, pathParameters));
@@ -899,7 +938,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
     @Test
     public void listTokens_client() throws Exception {
         String adminToken =  getClientCredentialsOAuthAccessToken(
-            getMockMvc(),
+            mockMvc,
             "admin",
             "adminsecret",
             "",
@@ -909,7 +948,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
         BaseClientDetails client = createClient(adminToken, "openid", "client_credentials,password", "tokens.list");
         String clientToken = getClientCredentialsOAuthAccessToken(
-            getMockMvc(),
+            mockMvc,
             client.getClientId(),
             client.getClientSecret(),
             "",
@@ -928,7 +967,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
         MockHttpServletRequestBuilder get = RestDocumentationRequestBuilders.get("/oauth/token/list/client/{clientId}", client.getClientId());
 
-        getMockMvc().perform(
+        mockMvc.perform(
             get
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + clientToken)
                 .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE))
@@ -939,7 +978,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
     @Test
     public void listTokens_user() throws Exception {
         String adminToken =  getClientCredentialsOAuthAccessToken(
-            getMockMvc(),
+            mockMvc,
             "admin",
             "adminsecret",
             "",
@@ -949,7 +988,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
         BaseClientDetails client = createClient(adminToken, "openid", "client_credentials,password", "tokens.list");
         String clientToken = getClientCredentialsOAuthAccessToken(
-            getMockMvc(),
+            mockMvc,
             client.getClientId(),
             client.getClientSecret(),
             "",
@@ -960,7 +999,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
 
         getUserOAuthAccessToken(
-            getMockMvc(),
+            mockMvc,
             client.getClientId(),
             client.getClientSecret(),
             user.getUserName(),
@@ -981,7 +1020,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
 
         MockHttpServletRequestBuilder get = RestDocumentationRequestBuilders.get("/oauth/token/list/user/{userId}", user.getId());
 
-        getMockMvc().perform(
+        mockMvc.perform(
             get
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + clientToken)
                 .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE))
@@ -997,7 +1036,7 @@ public class TokenEndpointDocs extends AbstractTokenMockMvcTests {
                 grantTypes,
                 authorities, "http://redirect.url");
         client.setClientSecret(SECRET);
-        BaseClientDetails clientDetails = MockMvcUtils.createClient(getMockMvc(), token, client);
+        BaseClientDetails clientDetails = MockMvcUtils.createClient(mockMvc, token, client);
         clientDetails.setClientSecret(SECRET);
         return clientDetails;
     }
