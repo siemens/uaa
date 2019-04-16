@@ -4,6 +4,7 @@ import org.cloudfoundry.identity.uaa.TestSpringContext;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils;
+import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
 import org.cloudfoundry.identity.uaa.scim.ScimUser;
 import org.cloudfoundry.identity.uaa.scim.ScimUserProvisioning;
 import org.cloudfoundry.identity.uaa.scim.jdbc.JdbcScimUserProvisioning;
@@ -67,6 +68,8 @@ public class AuthorizeEndpointDocs {
     private final ParameterDescriptor promptParameter = parameterWithName(ID_TOKEN_HINT_PROMPT).description("specifies whether to prompt for user authentication. Only value `" + ID_TOKEN_HINT_PROMPT_NONE + "` is supported.").attributes(key("constraints").value("Optional"), key("type").value(STRING));
     private final ParameterDescriptor responseTypeParameter = parameterWithName(RESPONSE_TYPE).attributes(key("constraints").value("Required"), key("type").value(STRING));
     private final ParameterDescriptor loginHintParameter = parameterWithName("login_hint").optional(null).type(STRING).description("<small><mark>UAA 4.19.0</mark></small> Indicates the identity provider to be used. The passed string has to be a URL-Encoded JSON Object, containing the field `origin` with value as `origin_key` of an identity provider.");
+    private final ParameterDescriptor codeChallenge = parameterWithName(PkceValidationService.CODE_CHALLENGE).description("<small><mark>UAA 4.27.0</mark></small> [PKCE](https://tools.ietf.org/html/rfc7636) Code Challenge. When `code_challenge` is present also a `code_challenge_method` must be provided. A matching `code_verifier` parameter must be provided in the subsequent request to get an `access_token` from `/oauth/token`").attributes(key("constraints").value("Optional"), key("type").value(STRING));
+    private final ParameterDescriptor codeChallengeMethod = parameterWithName(PkceValidationService.CODE_CHALLENGE_METHOD).description("<small><mark>UAA 4.27.0</mark></small> [PKCE](https://tools.ietf.org/html/rfc7636) Code Challenge Method. `S256` and `plain` methods are supported. `S256` method creates a BASE64 URL encoded SHA256 hash of the `code_verifier`. The `plain` method is intended for constrained devices unable to calculate SHA256. In this case the `code_verifier` equals the `code_challenge`. If possible it is recommended to use `S256`.").attributes(key("constraints").value("Optional"), key("type").value(STRING));
 
     private UaaAuthentication principal;
     private MockMvc mockMvc;
@@ -117,6 +120,8 @@ public class AuthorizeEndpointDocs {
                 .param(SCOPE, "openid oauth.approvals")
                 .param(REDIRECT_URI, "http://localhost/app")
                 .param("login_hint", URLEncoder.encode("{\"origin\":\"uaa\"}", "utf-8"))
+                .param(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE)
+                .param(PkceValidationService.CODE_CHALLENGE_METHOD, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256)
                 .session(session);
 
         Snippet requestParameters = requestParameters(
@@ -124,7 +129,9 @@ public class AuthorizeEndpointDocs {
                 clientIdParameter,
                 scopesParameter,
                 redirectParameter,
-                loginHintParameter
+                loginHintParameter,
+                codeChallenge,
+                codeChallengeMethod
         );
 
         mockMvc.perform(get)
@@ -151,13 +158,17 @@ public class AuthorizeEndpointDocs {
                 .param(RESPONSE_TYPE, "code")
                 .param(CLIENT_ID, "login")
                 .param(REDIRECT_URI, "http://localhost/redirect/cf")
+                .param(PkceValidationService.CODE_CHALLENGE, UaaTestAccounts.CODE_CHALLENGE)
+                .param(PkceValidationService.CODE_CHALLENGE_METHOD, UaaTestAccounts.CODE_CHALLENGE_METHOD_S256)
                 .param(STATE, new RandomValueStringGenerator().generate());
 
         Snippet requestParameters = requestParameters(
                 responseTypeParameter.description("Space-delimited list of response types. Here, `code` for requesting an authorization code for an access token, as per OAuth spec"),
                 clientIdParameter,
                 redirectParameter,
-                parameterWithName(STATE).description("any random string to be returned in the Location header as a query parameter, used to achieve per-request customization").attributes(key("constraints").value("Required"), key("type").value(STRING))
+                parameterWithName(STATE).description("any random string to be returned in the Location header as a query parameter, used to achieve per-request customization").attributes(key("constraints").value("Required"), key("type").value(STRING)),
+                codeChallenge,
+                codeChallengeMethod
         );
 
         mockMvc.perform(get)
