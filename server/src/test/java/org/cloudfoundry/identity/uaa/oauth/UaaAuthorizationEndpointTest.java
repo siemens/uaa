@@ -64,9 +64,6 @@ public class UaaAuthorizationEndpointTest {
         uaaAuthorizationEndpoint.setOpenIdSessionStateCalculator(openIdSessionStateCalculator);
         responseTypes = new HashSet<>();
 
-        when(openIdSessionStateCalculator.calculate("userid", null, "http://example.com")).thenReturn("opbshash");
-        when(authorizationCodeServices.createAuthorizationCode(any(OAuth2Authentication.class))).thenReturn("code");
-
         PlainPkceVerifier plainPkceVerifier = new PlainPkceVerifier();
         S256PkceVerifier s256PkceVerifier = new S256PkceVerifier();
         Map<String,PkceVerifier> pkceVerifiers = new HashMap<String,PkceVerifier>();
@@ -74,6 +71,9 @@ public class UaaAuthorizationEndpointTest {
         pkceVerifiers.put(s256PkceVerifier.getCodeChallengeMethod(), s256PkceVerifier);
         pkceValidationService = new PkceValidationService(pkceVerifiers);
         uaaAuthorizationEndpoint.setPkceValidationService(pkceValidationService);
+
+        when(openIdSessionStateCalculator.calculate("userid", null, "http://example.com")).thenReturn("opbshash");
+        when(authorizationCodeServices.createAuthorizationCode(any(OAuth2Authentication.class))).thenReturn("code");
     }
 
     @Test
