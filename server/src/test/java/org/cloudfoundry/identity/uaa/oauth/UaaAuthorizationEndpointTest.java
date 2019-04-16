@@ -76,6 +76,7 @@ public class UaaAuthorizationEndpointTest {
         when(authorizationCodeServices.createAuthorizationCode(any(OAuth2Authentication.class))).thenReturn("code");
     }
 
+
     @Test
     public void testGetGrantType_id_token_only_is_implicit() {
         responseTypes.add("id_token");

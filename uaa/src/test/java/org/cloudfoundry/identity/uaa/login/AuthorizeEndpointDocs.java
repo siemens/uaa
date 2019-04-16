@@ -93,9 +93,9 @@ class AuthorizeEndpointDocs extends EndpointDocs {
                 clientIdParameter,
                 scopesParameter,
                 redirectParameter,
-                loginHintParameter,
                 codeChallenge,
-                codeChallengeMethod
+                codeChallengeMethod,
+                loginHintParameter
         );
 
         mockMvc.perform(get)
@@ -130,9 +130,9 @@ class AuthorizeEndpointDocs extends EndpointDocs {
                 responseTypeParameter.description("Space-delimited list of response types. Here, `code` for requesting an authorization code for an access token, as per OAuth spec"),
                 clientIdParameter,
                 redirectParameter,
-                parameterWithName(STATE).description("any random string to be returned in the Location header as a query parameter, used to achieve per-request customization").attributes(key("constraints").value("Required"), key("type").value(STRING)),
                 codeChallenge,
-                codeChallengeMethod
+                codeChallengeMethod,
+                parameterWithName(STATE).description("any random string to be returned in the Location header as a query parameter, used to achieve per-request customization").attributes(key("constraints").value("Required"), key("type").value(STRING))
         );
 
         mockMvc.perform(get)
