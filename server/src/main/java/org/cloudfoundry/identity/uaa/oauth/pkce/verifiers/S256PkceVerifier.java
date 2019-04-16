@@ -5,9 +5,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.cloudfoundry.identity.uaa.oauth.pkce.PkceVerifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * SHA-256 code challenge method implementation.
@@ -17,7 +17,7 @@ import org.cloudfoundry.identity.uaa.oauth.pkce.PkceVerifier;
  */
 public class S256PkceVerifier implements PkceVerifier {
 
-	protected final Log logger = LogFactory.getLog(getClass());
+	private static Logger logger = LoggerFactory.getLogger(S256PkceVerifier.class);
 	private final String codeChallengeMethod = "S256";
 
     public S256PkceVerifier() {
