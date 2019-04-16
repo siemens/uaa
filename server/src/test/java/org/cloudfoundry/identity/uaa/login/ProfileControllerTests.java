@@ -22,8 +22,9 @@ import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.home.BuildInfo;
 import org.cloudfoundry.identity.uaa.oauth.client.ClientConstants;
+import org.cloudfoundry.identity.uaa.security.PollutionPreventionExtension;
 import org.cloudfoundry.identity.uaa.security.SecurityContextAccessor;
-import org.cloudfoundry.identity.uaa.zone.ClientServicesExtension;
+import org.cloudfoundry.identity.uaa.zone.MultitenantClientServices;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
@@ -63,6 +64,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(SpringExtension.class)
+@ExtendWith(PollutionPreventionExtension.class)
 @WebAppConfiguration
 @ContextConfiguration(classes = ProfileControllerTests.ContextConfiguration.class)
 public class ProfileControllerTests extends TestClassNullifier {
@@ -74,7 +76,7 @@ public class ProfileControllerTests extends TestClassNullifier {
     WebApplicationContext webApplicationContext;
 
     @Autowired
-    ClientServicesExtension clientDetailsService;
+    MultitenantClientServices clientDetailsService;
 
     @Autowired
     ApprovalStore approvalStore;
@@ -260,8 +262,8 @@ public class ProfileControllerTests extends TestClassNullifier {
         }
 
         @Bean
-        ClientServicesExtension clientService() {
-            return Mockito.mock(ClientServicesExtension.class);
+        MultitenantClientServices clientService() {
+            return Mockito.mock(MultitenantClientServices.class);
         }
 
         @Bean
@@ -274,7 +276,7 @@ public class ProfileControllerTests extends TestClassNullifier {
 
         @Bean
         ProfileController profileController(ApprovalStore approvalsService,
-                                            ClientServicesExtension clientDetailsService,
+                                            MultitenantClientServices clientDetailsService,
                                             SecurityContextAccessor securityContextAccessor) {
             return new ProfileController(approvalsService, clientDetailsService, securityContextAccessor);
         }

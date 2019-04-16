@@ -12,8 +12,8 @@
  *******************************************************************************/
 package org.cloudfoundry.identity.uaa.client;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.cloudfoundry.identity.uaa.approval.ApprovalStore;
 import org.cloudfoundry.identity.uaa.audit.event.EntityDeletedEvent;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthenticationDetails;
@@ -32,7 +32,7 @@ import org.cloudfoundry.identity.uaa.security.DefaultSecurityContextAccessor;
 import org.cloudfoundry.identity.uaa.security.SecurityContextAccessor;
 import org.cloudfoundry.identity.uaa.util.UaaPagingUtils;
 import org.cloudfoundry.identity.uaa.util.UaaStringUtils;
-import org.cloudfoundry.identity.uaa.zone.ClientServicesExtension;
+import org.cloudfoundry.identity.uaa.zone.MultitenantClientServices;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.cloudfoundry.identity.uaa.zone.InvalidClientSecretException;
 import org.springframework.beans.factory.InitializingBean;
@@ -97,9 +97,9 @@ public class ClientAdminEndpoints implements InitializingBean, ApplicationEventP
 
     private static final String SCIM_CLIENTS_SCHEMA_URI = "http://cloudfoundry.org/schema/scim/oauth-clients-1.0";
 
-    private final Log logger = LogFactory.getLog(getClass());
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private ClientServicesExtension clientRegistrationService;
+    private MultitenantClientServices clientRegistrationService;
 
     private QueryableResourceManager<ClientDetails> clientDetailsService;
 
@@ -159,7 +159,7 @@ public class ClientAdminEndpoints implements InitializingBean, ApplicationEventP
     /**
      * @param clientRegistrationService the clientRegistrationService to set
      */
-    public void setClientRegistrationService(ClientServicesExtension clientRegistrationService) {
+    public void setClientRegistrationService(MultitenantClientServices clientRegistrationService) {
         this.clientRegistrationService = clientRegistrationService;
     }
 
@@ -445,7 +445,7 @@ public class ClientAdminEndpoints implements InitializingBean, ApplicationEventP
     protected ClientDetails[] doProcessDeletes(ClientDetails[] details) {
         ClientDetailsModification[] result = new ClientDetailsModification[details.length];
         for (int i=0; i<details.length; i++) {
-            publish(new EntityDeletedEvent<>(details[i], SecurityContextHolder.getContext().getAuthentication()));
+            publish(new EntityDeletedEvent<>(details[i], SecurityContextHolder.getContext().getAuthentication(), IdentityZoneHolder.getCurrentZoneId()));
             clientDeletes.incrementAndGet();
             result[i] = removeSecret(details[i]);
             result[i].setApprovalsDeleted(true);

@@ -12,8 +12,8 @@
  *******************************************************************************/
 package org.cloudfoundry.identity.uaa.approval;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.cloudfoundry.identity.uaa.error.UaaException;
 import org.cloudfoundry.identity.uaa.resources.ActionResult;
 import org.cloudfoundry.identity.uaa.security.DefaultSecurityContextAccessor;
@@ -22,7 +22,7 @@ import org.cloudfoundry.identity.uaa.user.UaaUserDatabase;
 import org.cloudfoundry.identity.uaa.util.UaaPagingUtils;
 import org.cloudfoundry.identity.uaa.web.ConvertingExceptionView;
 import org.cloudfoundry.identity.uaa.web.ExceptionReport;
-import org.cloudfoundry.identity.uaa.zone.ClientServicesExtension;
+import org.cloudfoundry.identity.uaa.zone.MultitenantClientServices;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.http.HttpStatus;
@@ -58,7 +58,7 @@ public class ApprovalsAdminEndpoints implements InitializingBean, ApprovalsContr
 
     private ApprovalStore approvalStore = null;
 
-    private ClientServicesExtension clientDetailsService = null;
+    private MultitenantClientServices clientDetailsService = null;
 
     private UaaUserDatabase userDatabase;
 
@@ -67,7 +67,7 @@ public class ApprovalsAdminEndpoints implements InitializingBean, ApprovalsContr
     private HttpMessageConverter<?>[] messageConverters = new RestTemplate().getMessageConverters().toArray(
                     new HttpMessageConverter<?>[0]);
 
-    private final Log logger = LogFactory.getLog(getClass());
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private SecurityContextAccessor securityContextAccessor = new DefaultSecurityContextAccessor();
 
@@ -239,7 +239,7 @@ public class ApprovalsAdminEndpoints implements InitializingBean, ApprovalsContr
         Assert.notNull(userDatabase, "Please supply a user database");
     }
 
-    public void setClientDetailsService(ClientServicesExtension clientDetailsService) {
+    public void setClientDetailsService(MultitenantClientServices clientDetailsService) {
         this.clientDetailsService = clientDetailsService;
     }
 

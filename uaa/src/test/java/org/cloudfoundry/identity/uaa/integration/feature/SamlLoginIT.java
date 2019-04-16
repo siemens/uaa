@@ -36,6 +36,7 @@ import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.util.RetryRule;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneConfiguration;
+import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.flywaydb.core.internal.util.StringUtils;
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -358,7 +359,7 @@ public class SamlLoginIT {
         assertThat(webDriver.findElement(By.cssSelector("h1")).getText(), Matchers.containsString("Where to"));
 
         logout();
-        IntegrationTestUtils.validateAccountChooserCookie(baseUrl, webDriver);
+        IntegrationTestUtils.validateAccountChooserCookie(baseUrl, webDriver, IdentityZoneHolder.get());
         webDriver.findElement(By.xpath("//a[text()='" + provider.getConfig().getLinkText() + "']")).click();
 
         webDriver.findElement(By.xpath("//h2[contains(text(), 'Enter your username and password')]"));
@@ -488,7 +489,7 @@ public class SamlLoginIT {
         webDriver.findElement(By.name("password")).sendKeys(password);
         webDriver.findElement(By.xpath("//input[@value='Login']")).click();
         assertThat(webDriver.findElement(By.cssSelector("h1")).getText(), Matchers.containsString(lookfor));
-        IntegrationTestUtils.validateAccountChooserCookie(baseUrl, webDriver);
+        IntegrationTestUtils.validateAccountChooserCookie(baseUrl, webDriver, IdentityZoneHolder.get());
     }
 
     protected IdentityProvider<SamlIdentityProviderDefinition> createIdentityProvider(String originKey) throws Exception {
@@ -1045,7 +1046,7 @@ public class SamlLoginIT {
 
         String idpOrigin = zone.getSubdomain() + ".cloudfoundry-saml-login";
 
-        String uaaZoneId = IdentityZone.getUaa().getId();
+        String uaaZoneId = IdentityZone.getUaaZoneId();
         SamlIdentityProviderDefinition def = new SamlIdentityProviderDefinition()
             .setZoneId(uaaZoneId)
             .setMetaDataLocation(idpMetadata)
@@ -1435,10 +1436,6 @@ public class SamlLoginIT {
         return createSimplePHPSamlIDP(alias, "testzone1");
     }
 
-    public SamlIdentityProviderDefinition createTestZone3IDP(String alias) {
-        return createSimplePHPSamlIDP(alias, "testzone3");
-    }
-
     public SamlIdentityProviderDefinition createTestZoneIDP(String alias, String zoneSubdomain) {
         return createSimplePHPSamlIDP(alias, zoneSubdomain);
     }
@@ -1484,22 +1481,6 @@ public class SamlLoginIT {
         def.setShowSamlLink(true);
         def.setIdpEntityAlias(alias);
         def.setLinkText("Login with Simple SAML PHP("+alias+")");
-        return def;
-    }
-
-    public SamlIdentityProviderDefinition getTestURLDefinition() {
-        SamlIdentityProviderDefinition def = new SamlIdentityProviderDefinition();
-        def.setZoneId("uaa");
-        def.setMetaDataLocation("https://branding.login.oms.identity.team/saml/metadata?random="+new RandomValueStringGenerator().generate());
-        //def.setMetaDataLocation("https://login.run.pivotal.io/saml/metadata");
-        def.setNameID("urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress");
-        def.setAssertionConsumerIndex(0);
-        def.setMetadataTrustCheck(false);
-        def.setShowSamlLink(true);
-        //def.setSocketFactoryClassName(DEFAULT_HTTPS_SOCKET_FACTORY);
-        String urlAlias = "Test URL Create - "+new RandomValueStringGenerator().generate();
-        def.setIdpEntityAlias(urlAlias);
-        def.setLinkText("Login with Simple SAML PHP("+ urlAlias +")");
         return def;
     }
 

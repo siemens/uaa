@@ -12,8 +12,8 @@
  *******************************************************************************/
 package org.cloudfoundry.identity.uaa.provider;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.cloudfoundry.identity.uaa.audit.event.SystemDeletable;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
@@ -36,7 +36,7 @@ import java.util.UUID;
 
 public class JdbcIdentityProviderProvisioning implements IdentityProviderProvisioning, SystemDeletable {
 
-    private static Log logger = LogFactory.getLog(JdbcIdentityProviderProvisioning.class);
+    private static Logger logger = LoggerFactory.getLogger(JdbcIdentityProviderProvisioning.class);
 
     public static final String ID_PROVIDER_FIELDS = "id,version,created,lastmodified,name,origin_key,type,config,identity_zone_id,active";
 
@@ -57,6 +57,8 @@ public class JdbcIdentityProviderProvisioning implements IdentityProviderProvisi
     public static final String IDENTITY_PROVIDER_BY_ID_QUERY = "select " + ID_PROVIDER_FIELDS + " from identity_provider " + "where id=? and identity_zone_id=?";
 
     public static final String IDENTITY_PROVIDER_BY_ORIGIN_QUERY = "select " + ID_PROVIDER_FIELDS + " from identity_provider " + "where origin_key=? and identity_zone_id=? ";
+
+    public static final String IDENTITY_PROVIDER_BY_ORIGIN_QUERY_ACTIVE =  IDENTITY_PROVIDER_BY_ORIGIN_QUERY + " and active = ? ";
 
     protected final JdbcTemplate jdbcTemplate;
 
@@ -90,6 +92,12 @@ public class JdbcIdentityProviderProvisioning implements IdentityProviderProvisi
 
     @Override
     public IdentityProvider retrieveByOrigin(String origin, String zoneId) {
+        IdentityProvider identityProvider = jdbcTemplate.queryForObject(IDENTITY_PROVIDER_BY_ORIGIN_QUERY_ACTIVE, mapper, origin, zoneId, true);
+        return identityProvider;
+    }
+
+    @Override
+    public IdentityProvider retrieveByOriginIgnoreActiveFlag(String origin, String zoneId) {
         IdentityProvider identityProvider = jdbcTemplate.queryForObject(IDENTITY_PROVIDER_BY_ORIGIN_QUERY, mapper, origin, zoneId);
         return identityProvider;
     }
@@ -168,7 +176,7 @@ public class JdbcIdentityProviderProvisioning implements IdentityProviderProvisi
     }
 
     @Override
-    public Log getLogger() {
+    public Logger getLogger() {
         return logger;
     }
 

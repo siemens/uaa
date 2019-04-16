@@ -12,8 +12,8 @@
  *******************************************************************************/
 package org.cloudfoundry.identity.uaa.test;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.user.UaaAuthority;
 import org.cloudfoundry.identity.uaa.user.UaaUser;
@@ -59,7 +59,7 @@ public class UaaTestAccounts implements TestAccounts {
     
     public static final String CODE_VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 
-    private static final Log logger = LogFactory.getLog(UaaTestAccounts.class);
+    private static final Logger logger = LoggerFactory.getLogger(UaaTestAccounts.class);
 
     private Environment environment = TestProfileEnvironment.getEnvironment();
 

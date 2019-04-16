@@ -1,8 +1,8 @@
 package org.cloudfoundry.identity.uaa.login;
 
-import org.cloudfoundry.identity.uaa.TestSpringContext;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
+import org.cloudfoundry.identity.uaa.mock.EndpointDocs;
 import org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils;
 import org.cloudfoundry.identity.uaa.oauth.pkce.PkceValidationService;
 import org.cloudfoundry.identity.uaa.scim.ScimUser;
@@ -12,29 +12,16 @@ import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
 import org.cloudfoundry.identity.uaa.user.UaaAuthority;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.junit.Assert;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockHttpSession;
-import org.springframework.restdocs.ManualRestDocumentation;
 import org.springframework.restdocs.request.ParameterDescriptor;
 import org.springframework.restdocs.snippet.Snippet;
 import org.springframework.security.oauth2.common.util.RandomValueStringGenerator;
-import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.context.web.WebAppConfiguration;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.WebApplicationContext;
 
 import java.net.URLEncoder;
 import java.util.Collections;
@@ -44,24 +31,23 @@ import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.ID_TOKEN_
 import static org.cloudfoundry.identity.uaa.test.SnippetUtils.parameterWithName;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED;
-import static org.springframework.restdocs.headers.HeaderDocumentation.*;
+import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
+import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
+import static org.springframework.restdocs.headers.HeaderDocumentation.responseHeaders;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
-import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.get;
 import static org.springframework.restdocs.payload.JsonFieldType.STRING;
 import static org.springframework.restdocs.request.RequestDocumentation.requestParameters;
 import static org.springframework.restdocs.snippet.Attributes.key;
-import static org.springframework.restdocs.templates.TemplateFormats.markdown;
-import static org.springframework.security.oauth2.common.util.OAuth2Utils.*;
+import static org.springframework.security.oauth2.common.util.OAuth2Utils.CLIENT_ID;
+import static org.springframework.security.oauth2.common.util.OAuth2Utils.REDIRECT_URI;
+import static org.springframework.security.oauth2.common.util.OAuth2Utils.RESPONSE_TYPE;
+import static org.springframework.security.oauth2.common.util.OAuth2Utils.SCOPE;
+import static org.springframework.security.oauth2.common.util.OAuth2Utils.STATE;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(SpringExtension.class)
-@ActiveProfiles("default")
-@WebAppConfiguration
-@ContextConfiguration(classes = TestSpringContext.class)
-@Transactional
-public class AuthorizeEndpointDocs {
+class AuthorizeEndpointDocs extends EndpointDocs {
     private final ParameterDescriptor clientIdParameter = parameterWithName(CLIENT_ID).description("a unique string representing the registration information provided by the client").attributes(key("constraints").value("Required"), key("type").value(STRING));
     private final ParameterDescriptor scopesParameter = parameterWithName(SCOPE).description("requested scopes, space-delimited").attributes(key("constraints").value("Optional"), key("type").value(STRING));
     private final ParameterDescriptor redirectParameter = parameterWithName(REDIRECT_URI).description("redirection URI to which the authorization server will send the user-agent back once access is granted (or denied), optional if pre-registered by the client").attributes(key("constraints").value("Optional"), key("type").value(STRING));
@@ -72,41 +58,19 @@ public class AuthorizeEndpointDocs {
     private final ParameterDescriptor codeChallengeMethod = parameterWithName(PkceValidationService.CODE_CHALLENGE_METHOD).description("<small><mark>UAA 4.27.0</mark></small> [PKCE](https://tools.ietf.org/html/rfc7636) Code Challenge Method. `S256` and `plain` methods are supported. `S256` method creates a BASE64 URL encoded SHA256 hash of the `code_verifier`. The `plain` method is intended for constrained devices unable to calculate SHA256. In this case the `code_verifier` equals the `code_challenge`. If possible it is recommended to use `S256`.").attributes(key("constraints").value("Optional"), key("type").value(STRING));
 
     private UaaAuthentication principal;
-    private MockMvc mockMvc;
 
-    @Autowired
-    private WebApplicationContext webApplicationContext;
     @Autowired
     private JdbcScimUserProvisioning userProvisioning;
-    @Autowired
-    private FilterChainProxy springSecurityFilterChain;
-
-    private ManualRestDocumentation restDocumentation = new ManualRestDocumentation("build/generated-snippets");
 
     @BeforeEach
-    public void setUp(TestInfo testInfo) throws Exception {
+    void setUp() throws Exception {
         ScimUser marissa = userProvisioning.query("username eq \"marissa\" and origin eq \"uaa\"", IdentityZoneHolder.get().getId()).get(0);
         UaaPrincipal uaaPrincipal = new UaaPrincipal(marissa.getId(), marissa.getUserName(), marissa.getPrimaryEmail(), marissa.getOrigin(), marissa.getExternalId(), IdentityZoneHolder.get().getId());
         principal = new UaaAuthentication(uaaPrincipal, Collections.singletonList(UaaAuthority.fromAuthorities("uaa.user")), null);
-
-        restDocumentation.beforeTest(testInfo.getTestClass().get(), testInfo.getDisplayName());
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
-                .addFilter(springSecurityFilterChain)
-                .apply(documentationConfiguration(restDocumentation)
-                        .uris().withPort(80)
-                        .and()
-                        .snippets()
-                        .withTemplateFormat(markdown()))
-                .build();
-    }
-
-    @AfterEach
-    public void teardownRestDocumentationContext() {
-        restDocumentation.afterTest();
     }
 
     @Test
-    public void browserCodeRequest() throws Exception {
+    void browserCodeRequest() throws Exception {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(
                 HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
@@ -141,7 +105,7 @@ public class AuthorizeEndpointDocs {
     }
 
     @Test
-    public void apiCodeRequest() throws Exception {
+    void apiCodeRequest() throws Exception {
         resetMarissaPassword(userProvisioning);
 
         String cfAccessToken = MockMvcUtils.getUserOAuthAccessToken(
@@ -179,7 +143,7 @@ public class AuthorizeEndpointDocs {
     }
 
     @Test
-    public void implicitGrant_browserRequest() throws Exception {
+    void implicitGrant_browserRequest() throws Exception {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(
                 HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
@@ -215,7 +179,7 @@ public class AuthorizeEndpointDocs {
     }
 
     @Test
-    public void implicitGrantWithPromptParameter_browserRequest() throws Exception {
+    void implicitGrantWithPromptParameter_browserRequest() throws Exception {
 
         MockHttpServletRequestBuilder get = get("/oauth/authorize")
                 .accept(APPLICATION_FORM_URLENCODED)
@@ -243,7 +207,7 @@ public class AuthorizeEndpointDocs {
     }
 
     @Test
-    public void getIdToken() throws Exception {
+    void getIdToken() throws Exception {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(
                 HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
@@ -280,7 +244,7 @@ public class AuthorizeEndpointDocs {
     }
 
     @Test
-    public void getIdTokenAndAccessToken() throws Exception {
+    void getIdTokenAndAccessToken() throws Exception {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(
                 HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
@@ -318,7 +282,7 @@ public class AuthorizeEndpointDocs {
     }
 
     @Test
-    public void getIdTokenAndCode() throws Exception {
+    void getIdTokenAndCode() throws Exception {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(
                 HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,

@@ -12,9 +12,9 @@
  *******************************************************************************/
 package org.cloudfoundry.identity.uaa.user;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.cloudfoundry.identity.uaa.zone.ClientServicesExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.cloudfoundry.identity.uaa.zone.MultitenantClientServices;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
@@ -40,13 +40,13 @@ import java.util.Set;
  */
 public class UaaUserApprovalHandler implements UserApprovalHandler {
 
-    private Log logger = LogFactory.getLog(getClass());
+    private Logger logger = LoggerFactory.getLogger(getClass());
 
     private boolean useTokenServices = true;
 
     private String approvalParameter = OAuth2Utils.USER_OAUTH_APPROVAL;
 
-    private ClientServicesExtension clientDetailsService;
+    private MultitenantClientServices clientDetailsService;
 
     private OAuth2RequestFactory requestFactory;
 
@@ -67,7 +67,7 @@ public class UaaUserApprovalHandler implements UserApprovalHandler {
     /**
      * @param clientDetailsService the clientDetailsService to set
      */
-    public void setClientDetailsService(ClientServicesExtension clientDetailsService) {
+    public void setClientDetailsService(MultitenantClientServices clientDetailsService) {
         this.clientDetailsService = clientDetailsService;
     }
 

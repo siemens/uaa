@@ -1,21 +1,11 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
- *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
- *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
 package org.cloudfoundry.identity.uaa.scim.endpoints;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.collect.Lists;
+import org.apache.commons.lang.RandomStringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
-import org.cloudfoundry.identity.uaa.TestSpringContext;
+import org.cloudfoundry.identity.uaa.DefaultTestContext;
 import org.cloudfoundry.identity.uaa.account.UserAccountStatus;
 import org.cloudfoundry.identity.uaa.approval.Approval;
 import org.cloudfoundry.identity.uaa.approval.ApprovalStore;
@@ -35,15 +25,14 @@ import org.cloudfoundry.identity.uaa.scim.ScimUser;
 import org.cloudfoundry.identity.uaa.scim.ScimUserProvisioning;
 import org.cloudfoundry.identity.uaa.scim.exception.UserAlreadyVerifiedException;
 import org.cloudfoundry.identity.uaa.scim.test.JsonObjectMatcherUtils;
-import org.cloudfoundry.identity.uaa.test.HoneycombAuditEventTestListenerExtension;
-import org.cloudfoundry.identity.uaa.test.HoneycombJdbcInterceptorExtension;
-import org.cloudfoundry.identity.uaa.test.TestClient;
+import org.cloudfoundry.identity.uaa.test.*;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.util.SetServerNameRequestPostProcessor;
 import org.cloudfoundry.identity.uaa.zone.*;
 import org.json.JSONObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,10 +43,6 @@ import org.springframework.security.oauth2.common.util.RandomValueStringGenerato
 import org.springframework.security.oauth2.provider.ClientDetails;
 import org.springframework.security.oauth2.provider.client.BaseClientDetails;
 import org.springframework.security.web.FilterChainProxy;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
@@ -74,6 +59,7 @@ import java.util.Map;
 
 import static org.cloudfoundry.identity.uaa.codestore.ExpiringCodeType.REGISTRATION;
 import static org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils.CookieCsrfPostProcessor.cookieCsrf;
+import static org.cloudfoundry.identity.uaa.zone.IdentityZoneSwitchingFilter.HEADER;
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.is;
@@ -88,12 +74,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.util.StringUtils.hasText;
 
-@ExtendWith(SpringExtension.class)
-@ExtendWith(HoneycombJdbcInterceptorExtension.class)
-@ExtendWith(HoneycombAuditEventTestListenerExtension.class)
-@ActiveProfiles("default")
-@WebAppConfiguration
-@ContextConfiguration(classes = TestSpringContext.class)
+@ExtendWith(ZoneSeederExtension.class)
+@DefaultTestContext
 class ScimUserEndpointsMockMvcTests {
     private static final String HTTP_REDIRECT_EXAMPLE_COM = "http://redirect.example.com";
     private static final String USER_PASSWORD = "pas5Word";
@@ -132,7 +114,7 @@ class ScimUserEndpointsMockMvcTests {
         String clientId = generator.generate().toLowerCase();
         String clientSecret = generator.generate().toLowerCase();
         String authorities = "scim.read,scim.write,password.write,oauth.approvals,scim.create,uaa.admin";
-        clientDetails = MockMvcUtils.createClient(mockMvc, adminToken, clientId, clientSecret, Collections.singleton("oauth"), Arrays.asList("foo", "bar"), Collections.singletonList("client_credentials"), authorities);
+        clientDetails = MockMvcUtils.createClient(mockMvc, adminToken, clientId, clientSecret, Collections.singleton("oauth"), Arrays.asList("openid", "foo", "bar"), Arrays.asList("client_credentials", "password"), authorities);
         scimReadWriteToken = testClient.getClientCredentialsOAuthAccessToken(clientId, clientSecret, "scim.read scim.write password.write");
         scimCreateToken = testClient.getClientCredentialsOAuthAccessToken(clientId, clientSecret, "scim.create");
         usersRepository = webApplicationContext.getBean(ScimUserProvisioning.class);
@@ -248,7 +230,7 @@ class ScimUserEndpointsMockMvcTests {
                 .contentType(APPLICATION_JSON)
                 .content(requestBody);
         post.with(new SetServerNameRequestPostProcessor(identityZone.getSubdomain() + ".localhost"));
-        post.header(IdentityZoneSwitchingFilter.HEADER, IdentityZone.getUaa().getId());
+        post.header(HEADER, IdentityZone.getUaaZoneId());
 
         mockMvc.perform(post).andExpect(status().isForbidden());
     }
@@ -284,7 +266,7 @@ class ScimUserEndpointsMockMvcTests {
     @Test
     void verification_link_in_non_default_zone() throws Exception {
         String subdomain = generator.generate().toLowerCase();
-        MockMvcUtils.IdentityZoneCreationResult zoneResult = MockMvcUtils.createOtherIdentityZoneAndReturnResult(subdomain, mockMvc, webApplicationContext, null);
+        MockMvcUtils.IdentityZoneCreationResult zoneResult = MockMvcUtils.createOtherIdentityZoneAndReturnResult(subdomain, mockMvc, webApplicationContext, null, IdentityZoneHolder.getCurrentZoneId());
         String zonedClientId = "zonedClientId";
         String zonedClientSecret = "zonedClientSecret";
         BaseClientDetails zonedClientDetails = (BaseClientDetails) MockMvcUtils.createClient(mockMvc, zoneResult.getZoneAdminToken(), zonedClientId, zonedClientSecret, Collections.singleton("oauth"), null, Arrays.asList(new String[]{"client_credentials"}), "scim.create", null, zoneResult.getIdentityZone());
@@ -325,7 +307,7 @@ class ScimUserEndpointsMockMvcTests {
     @Test
     void verification_link_in_non_default_zone_using_switch() throws Exception {
         String subdomain = generator.generate().toLowerCase();
-        MockMvcUtils.IdentityZoneCreationResult zoneResult = MockMvcUtils.createOtherIdentityZoneAndReturnResult(subdomain, mockMvc, webApplicationContext, null);
+        MockMvcUtils.IdentityZoneCreationResult zoneResult = MockMvcUtils.createOtherIdentityZoneAndReturnResult(subdomain, mockMvc, webApplicationContext, null, IdentityZoneHolder.getCurrentZoneId());
         String zonedClientId = "admin";
         String zonedClientSecret = "adminsecret";
         String zonedScimCreateToken = MockMvcUtils.getClientCredentialsOAuthAccessToken(mockMvc, zonedClientId, zonedClientSecret, "uaa.admin", null);
@@ -510,7 +492,7 @@ class ScimUserEndpointsMockMvcTests {
     @Test
     void listUsers_in_anotherZone() throws Exception {
         String subdomain = generator.generate();
-        MockMvcUtils.IdentityZoneCreationResult result = MockMvcUtils.createOtherIdentityZoneAndReturnResult(subdomain, mockMvc, webApplicationContext, null);
+        MockMvcUtils.IdentityZoneCreationResult result = MockMvcUtils.createOtherIdentityZoneAndReturnResult(subdomain, mockMvc, webApplicationContext, null, IdentityZoneHolder.getCurrentZoneId());
         String zoneAdminToken = result.getZoneAdminToken();
 
         int usersMaxCountWithOffset = usersMaxCount + 1;
@@ -545,7 +527,7 @@ class ScimUserEndpointsMockMvcTests {
     @Test
     void testCreateUserInZoneUsingAdminClient() throws Exception {
         String subdomain = generator.generate();
-        MockMvcUtils.createOtherIdentityZone(subdomain, mockMvc, webApplicationContext);
+        MockMvcUtils.createOtherIdentityZone(subdomain, mockMvc, webApplicationContext, IdentityZoneHolder.getCurrentZoneId());
 
         String zoneAdminToken = testClient.getClientCredentialsOAuthAccessToken("admin", "admin-secret", "scim.write", subdomain);
 
@@ -555,7 +537,7 @@ class ScimUserEndpointsMockMvcTests {
     @Test
     void testCreateUserInZoneUsingZoneAdminUser() throws Exception {
         String subdomain = generator.generate();
-        MockMvcUtils.IdentityZoneCreationResult result = MockMvcUtils.createOtherIdentityZoneAndReturnResult(subdomain, mockMvc, webApplicationContext, null);
+        MockMvcUtils.IdentityZoneCreationResult result = MockMvcUtils.createOtherIdentityZoneAndReturnResult(subdomain, mockMvc, webApplicationContext, null, IdentityZoneHolder.getCurrentZoneId());
         String zoneAdminToken = result.getZoneAdminToken();
         createUser(getScimUser(), zoneAdminToken, IdentityZone.getUaa().getSubdomain(), result.getIdentityZone().getId());
     }
@@ -564,23 +546,25 @@ class ScimUserEndpointsMockMvcTests {
     void testUserSelfAccess_Get_and_Post() throws Exception {
         ScimUser user = getScimUser();
         user.setPassword("secret");
-        user = createUser(user, scimReadWriteToken, IdentityZone.getUaa().getSubdomain());
 
-        String selfToken = testClient.getUserOAuthAccessToken("cf", "", user.getUserName(), "secret", "");
+        ScimUser savedUser = createUser(user, scimReadWriteToken, IdentityZone.getUaa().getSubdomain());
 
-        user.setName(new ScimUser.Name("Given1", "Family1"));
-        user = updateUser(selfToken, HttpStatus.OK.value(), user);
+        String selfToken = testClient.getUserOAuthAccessToken("cf", "", savedUser.getUserName(), "secret", "");
 
-        user = getAndReturnUser(HttpStatus.OK.value(), user, selfToken);
+        savedUser.setName(new ScimUser.Name("Given1", "Family1"));
+
+        ScimUser updatedUser = updateUser(selfToken, HttpStatus.OK.value(), savedUser);
+
+        getAndReturnUser(HttpStatus.OK.value(), updatedUser, selfToken);
     }
 
     @Test
     void testCreateUserInOtherZoneIsUnauthorized() throws Exception {
         String subdomain = generator.generate();
-        MockMvcUtils.createOtherIdentityZone(subdomain, mockMvc, webApplicationContext);
+        MockMvcUtils.createOtherIdentityZone(subdomain, mockMvc, webApplicationContext, IdentityZoneHolder.getCurrentZoneId());
 
         String otherSubdomain = generator.generate();
-        MockMvcUtils.createOtherIdentityZone(otherSubdomain, mockMvc, webApplicationContext);
+        MockMvcUtils.createOtherIdentityZone(otherSubdomain, mockMvc, webApplicationContext, IdentityZoneHolder.getCurrentZoneId());
 
         String zoneAdminToken = testClient.getClientCredentialsOAuthAccessToken("admin", "admin-secret", "scim.write", subdomain);
 
@@ -794,6 +778,255 @@ class ScimUserEndpointsMockMvcTests {
         updateUser(scimReadWriteToken, HttpStatus.OK.value());
     }
 
+    @Nested
+    @DefaultTestContext
+    class WhenSelfEditing {
+        private ZoneSeeder zoneSeeder;
+
+        @BeforeEach
+        void setup(ZoneSeeder zoneSeeder) {
+            this.zoneSeeder = zoneSeeder.withDefaults().withDisableInternalUserManagement(false);
+        }
+
+        @Nested
+        @DefaultTestContext
+        class WhenAnAdminSelfEdits {
+            private ScimUser adminUser;
+            private ClientDetails adminClient;
+
+            @BeforeEach
+            void beforeEach() {
+                zoneSeeder.withClientWithImplicitPasswordRefreshTokenGrants("admin_client", "uaa.admin,scim.write")
+                        .withUserWhoBelongsToGroups("admin@test.org", Lists.newArrayList("uaa.admin", "scim.write"))
+                        .afterSeeding(zs -> {
+                            adminUser = zs.getUserByEmail("admin@test.org");
+                            adminClient = zs.getClientById("admin_client");
+                        });
+            }
+
+            @Test
+            void put_usingAnAccessTokenWithScimWriteScope_aUserCanSelfUpdateAnything() throws Exception {
+                performSelfEdit_shouldSucceed("scim.write", put("/Users/" + adminUser.getId()));
+            }
+
+            @Test
+            void put_usingAnAccessTokenWithUaaAdminScope_aUserCanSelfUpdateAnything() throws Exception {
+                performSelfEdit_shouldSucceed("uaa.admin", put("/Users/" + adminUser.getId()));
+            }
+
+            @Test
+            void patch_usingAnAccessTokenWithScimWriteScope_aUserCanSelfUpdateAnything() throws Exception {
+                performSelfEdit_shouldSucceed("scim.write", patch("/Users/" + adminUser.getId()));
+            }
+
+            @Test
+            void patch_usingAnAccessTokenWithUaaAdminScope_aUserCanSelfUpdateAnything() throws Exception {
+                performSelfEdit_shouldSucceed("uaa.admin", patch("/Users/" + adminUser.getId()));
+            }
+
+            private void performSelfEdit_shouldSucceed(String scopesToBeIncludedInToken, MockHttpServletRequestBuilder requestBuilder) throws Exception {
+                String accessToken = testClient.getUserOAuthAccessTokenForZone(
+                        adminClient.getClientId(),
+                        zoneSeeder.getPlainTextClientSecret(adminClient),
+                        adminUser.getUserName(),
+                        zoneSeeder.getPlainTextPassword(adminUser),
+                        scopesToBeIncludedInToken,
+                        zoneSeeder.getIdentityZoneSubdomain()
+                );
+
+                String newAdminUsername = "newAdminUsername";
+                adminUser.setUserName(newAdminUsername);
+
+                mockMvc.perform(requestBuilder
+                        .headers(zoneSeeder.getZoneSubdomainRequestHeader())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .header("If-Match", "\"" + adminUser.getVersion() + "\"")
+                        .accept(APPLICATION_JSON)
+                        .contentType(APPLICATION_JSON)
+                        .content(JsonUtils.writeValueAsBytes(adminUser)))
+                        .andDo(print())
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.userName").value(newAdminUsername));
+            }
+        }
+
+        @Nested
+        @DefaultTestContext
+        class WhenARegularUserSelfEdits {
+            private ScimUser regularUser;
+
+            @BeforeEach
+            void beforeEach() {
+                ScimUser user = zoneSeeder.newRandomScimUser();
+                user.addPhoneNumber("initial phone number");
+                user.setName(new ScimUser.Name("initial given name", "initial family name"));
+                user.setPrimaryEmail("initialEmail@test.org");
+
+                zoneSeeder.withClientWithImplicitPasswordRefreshTokenGrants()
+                        .withUser(user)
+                        .afterSeeding(zs -> {
+                            regularUser = zs.getUserByEmail("initialEmail@test.org");
+                        });
+            }
+
+            @Test
+            void put_updateUserEmail_WithAccessToken_ShouldFail() throws Exception {
+                String accessToken = getAccessTokenForUser(regularUser);
+
+                String newEmail = "otheruser@" + generator.generate().toLowerCase() + ".com";
+                regularUser.setEmails(null);
+                regularUser.addEmail(newEmail);
+
+                MockHttpServletRequestBuilder put = put("/Users/" + regularUser.getId())
+                        .headers(zoneSeeder.getZoneSubdomainRequestHeader())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .header("If-Match", "\"" + regularUser.getVersion() + "\"")
+                        .accept(APPLICATION_JSON)
+                        .contentType(APPLICATION_JSON)
+                        .content(JsonUtils.writeValueAsBytes(regularUser));
+
+                mockMvc.perform(put).andDo(print())
+                        .andExpect(status().is(403))
+                        .andExpect(jsonPath("$.error", is("invalid_self_edit")))
+                        .andExpect(jsonPath("$.error_description", is(
+                                "Users are only allowed to edit their own User settings when internal user storage is enabled, " +
+                                        "and in that case they may only edit the givenName and familyName.")
+                        ));
+            }
+
+            @Test
+            void patch_selfUpdate_WithAccessToken_WhenTryingToDeleteAField_shouldResultIn403() throws Exception {
+                test_patch_selfUpdate_WithAccessToken(
+                        "{\"meta\": {\"attributes\": [\"phonenumbers\"]}}",
+                        403, "$.error", "invalid_self_edit"
+                );
+            }
+
+            @Test
+            void patch_selfUpdate_WithAccessToken_WhenFamilyNameAndGivenNameAreChanged_shouldResultIn200() throws Exception {
+                test_patch_selfUpdate_WithAccessToken(
+                        "{\"name\": {\"givenName\": \"newGivenName\", \"familyName\": \"newFamilyName\"}}",
+                        200, "$.name.givenName", "newGivenName");
+            }
+
+            @Test
+            void patch_selfUpdate_WithAccessToken_WhenPrimaryEmailIsChanged_shouldResultIn403() throws Exception {
+                String newEmail = "otheruser@" + RandomStringUtils.randomAlphabetic(5) + ".com";
+
+                test_patch_selfUpdate_WithAccessToken(
+                        "{\"emails\": " +
+                                "  [" +
+                                "    {\n" +
+                                "        \"value\" : \"" + newEmail + "\",\n" +
+                                "        \"primary\" : true\n" +
+                                "    } " +
+                                "  ]" +
+                                "}",
+                        403, "$.error", "invalid_self_edit");
+            }
+
+            void test_patch_selfUpdate_WithAccessToken(String patchRequestBody, int expectedHttpStatusCode, String expectedJsonPath, String expectedValueAtJsonPath) throws Exception {
+                String accessToken = getAccessTokenForUser(regularUser);
+
+                MockHttpServletRequestBuilder patch = patch("/Users/" + regularUser.getId())
+                        .headers(zoneSeeder.getZoneSubdomainRequestHeader())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .header("If-Match", "\"" + regularUser.getVersion() + "\"")
+                        .accept(APPLICATION_JSON)
+                        .contentType(APPLICATION_JSON)
+                        .content(patchRequestBody.getBytes());
+
+                mockMvc.perform(patch)
+                        .andDo(print())
+                        .andExpect(status().is(expectedHttpStatusCode))
+                        .andExpect(jsonPath(expectedJsonPath).value(expectedValueAtJsonPath));
+            }
+
+            private String getAccessTokenForUser(ScimUser scimUser) throws Exception {
+                return testClient.getUserOAuthAccessTokenForZone(
+                        zoneSeeder.getClientWithImplicitPasswordRefreshTokenGrants().getClientId(),
+                        zoneSeeder.getPlainTextClientSecret(zoneSeeder.getClientWithImplicitPasswordRefreshTokenGrants()),
+                        scimUser.getUserName(),
+                        zoneSeeder.getPlainTextPassword(scimUser),
+                        "openid",
+                        zoneSeeder.getIdentityZoneSubdomain());
+            }
+
+            @Nested
+            @DefaultTestContext
+            class WithInternalUserStoreDisabled {
+
+                @BeforeEach
+                void beforeEach() {
+                    zoneSeeder.withDisableInternalUserManagement(true);
+                }
+
+                @Test
+                void put_updateNothing_shouldFail() throws Exception {
+                    mockMvc.perform(put("/Users/" + regularUser.getId())
+                            .headers(zoneSeeder.getZoneIdRequestHeader())
+                            .header("Authorization", "Bearer " + uaaAdminToken)
+                            .header("If-Match", "\"" + regularUser.getVersion() + "\"")
+                            .accept(APPLICATION_JSON)
+                            .contentType(APPLICATION_JSON)
+                            .content(JsonUtils.writeValueAsBytes(regularUser)))
+                            .andDo(print())
+                            .andExpect(status().is(403))
+                            .andExpect(content().string(JsonObjectMatcherUtils.matchesJsonObject(
+                                    new JSONObject()
+                                            .put("error_description", "Internal User Creation is currently disabled. External User Store is in use.")
+                                            .put("message", "Internal User Creation is currently disabled. External User Store is in use.")
+                                            .put("error", "internal_user_management_disabled"))));
+                }
+
+                @Test
+                void put_updateUserEmail_WithAccessToken_ShouldFail() throws Exception {
+                    String accessToken = getAccessTokenForUser(WhenARegularUserSelfEdits.this.regularUser);
+
+                    regularUser.setEmails(null);
+                    regularUser.addEmail("resetEmail@mail.com");
+
+                    MockHttpServletRequestBuilder put = put("/Users/" + regularUser.getId())
+                            .headers(zoneSeeder.getZoneSubdomainRequestHeader())
+                            .header("Authorization", "Bearer " + accessToken)
+                            .header("If-Match", "\"" + regularUser.getVersion() + "\"")
+                            .accept(APPLICATION_JSON)
+                            .contentType(APPLICATION_JSON)
+                            .content(JsonUtils.writeValueAsBytes(regularUser));
+                    mockMvc.perform(put).andDo(print())
+                            .andExpect(status().is(403))
+                            .andExpect(content().string(JsonObjectMatcherUtils.matchesJsonObject(
+                                    new JSONObject()
+                                            .put("error_description", "Internal User Creation is currently disabled. External User Store is in use.")
+                                            .put("message", "Internal User Creation is currently disabled. External User Store is in use.")
+                                            .put("error", "internal_user_management_disabled"))));
+                }
+
+                @Test
+                void patch_updateUserEmail_WithAccessToken_ShouldFail() throws Exception {
+                    String accessToken = getAccessTokenForUser(WhenARegularUserSelfEdits.this.regularUser);
+
+                    regularUser.addEmail("addAnotherNew@email.com");
+
+                    MockHttpServletRequestBuilder patch = patch("/Users/" + regularUser.getId())
+                            .headers(zoneSeeder.getZoneSubdomainRequestHeader())
+                            .header("Authorization", "Bearer " + accessToken)
+                            .header("If-Match", "\"" + regularUser.getVersion() + "\"")
+                            .accept(APPLICATION_JSON)
+                            .contentType(APPLICATION_JSON)
+                            .content(JsonUtils.writeValueAsBytes(regularUser));
+                    mockMvc.perform(patch)
+                            .andExpect(status().is(403))
+                            .andExpect(content().string(JsonObjectMatcherUtils.matchesJsonObject(
+                                    new JSONObject()
+                                            .put("error_description", "Internal User Creation is currently disabled. External User Store is in use.")
+                                            .put("message", "Internal User Creation is currently disabled. External User Store is in use.")
+                                            .put("error", "internal_user_management_disabled"))));
+                }
+            }
+        }
+    }
+
     @Test
     void testUpdateUser_No_Username_Returns_400() throws Exception {
         updateUser(scimReadWriteToken, HttpStatus.BAD_REQUEST.value());
@@ -817,7 +1050,7 @@ class ScimUserEndpointsMockMvcTests {
 
         mockMvc.perform(put("/Users/" + user.getId())
                 .header("Authorization", "Bearer " + uaaAdminToken)
-                .header(IdentityZoneSwitchingFilter.HEADER, identityZone.getId())
+                .header(HEADER, identityZone.getId())
                 .header("If-Match", "\"" + user.getVersion() + "\"")
                 .contentType(APPLICATION_JSON)
                 .content(JsonUtils.writeValueAsBytes(user)))
@@ -875,7 +1108,7 @@ class ScimUserEndpointsMockMvcTests {
 
         mockMvc.perform((delete("/Users/" + user.getId()))
                 .header("Authorization", "Bearer " + uaaAdminToken)
-                .header(IdentityZoneSwitchingFilter.HEADER, identityZone.getId())
+                .header(HEADER, identityZone.getId())
                 .contentType(APPLICATION_JSON)
                 .content(JsonUtils.writeValueAsBytes(user)))
                 .andExpect(status().isOk())
@@ -964,7 +1197,7 @@ class ScimUserEndpointsMockMvcTests {
 
         MockHttpServletRequestBuilder delete = delete("/Users/" + user.getId() + "/mfa")
                 .header("Authorization", "Bearer " + uaaAdminTokenFromOtherZone)
-                .header(IdentityZoneSwitchingFilter.HEADER, identityZone.getId())
+                .header(HEADER, identityZone.getId())
                 .contentType(APPLICATION_JSON);
 
         mockMvc.perform(delete)
@@ -1099,7 +1332,7 @@ class ScimUserEndpointsMockMvcTests {
 
     private IdentityZone getIdentityZone() throws Exception {
         String subdomain = generator.generate();
-        return MockMvcUtils.createOtherIdentityZone(subdomain, mockMvc, webApplicationContext);
+        return MockMvcUtils.createOtherIdentityZone(subdomain, mockMvc, webApplicationContext, IdentityZoneHolder.getCurrentZoneId());
     }
 
     private ScimUser createUser(String token) throws Exception {
@@ -1138,7 +1371,7 @@ class ScimUserEndpointsMockMvcTests {
                 .content(requestBody);
         if (subdomain != null && !subdomain.equals(""))
             post.with(new SetServerNameRequestPostProcessor(subdomain + ".localhost"));
-        if (switchZone != null) post.header(IdentityZoneSwitchingFilter.HEADER, switchZone);
+        if (switchZone != null) post.header(HEADER, switchZone);
 
         return mockMvc.perform(post);
     }

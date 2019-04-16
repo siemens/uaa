@@ -12,7 +12,7 @@
  *******************************************************************************/
 package org.cloudfoundry.identity.uaa.provider.saml.idp;
 
-import org.apache.commons.logging.Log;
+import org.slf4j.Logger;
 import org.cloudfoundry.identity.uaa.audit.event.EntityDeletedEvent;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.springframework.context.ApplicationListener;
@@ -34,12 +34,12 @@ public interface SamlServiceProviderDeletable extends ApplicationListener<Entity
     }
 
     default boolean isUaaZone(String zoneId) {
-        return IdentityZone.getUaa().getId().equals(zoneId);
+        return IdentityZone.getUaaZoneId().equals(zoneId);
     }
 
     int deleteByEntityId(String entityId, String zoneId);
 
     int deleteByIdentityZone(String zoneId);
 
-    Log getLogger();
+    Logger getLogger();
 }

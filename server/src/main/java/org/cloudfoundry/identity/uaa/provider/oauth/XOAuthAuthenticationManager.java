@@ -15,8 +15,8 @@ package org.cloudfoundry.identity.uaa.provider.oauth;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
 import org.cloudfoundry.identity.uaa.authentication.manager.ExternalGroupAuthorizationEvent;
 import org.cloudfoundry.identity.uaa.authentication.manager.ExternalLoginAuthenticationManager;
@@ -43,6 +43,7 @@ import org.cloudfoundry.identity.uaa.util.LinkedMaskingMultiValueMap;
 import org.cloudfoundry.identity.uaa.util.TokenValidation;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -105,7 +106,7 @@ import static org.springframework.util.StringUtils.isEmpty;
 
 public class XOAuthAuthenticationManager extends ExternalLoginAuthenticationManager<XOAuthAuthenticationManager.AuthenticationData> {
 
-    public static Log logger = LogFactory.getLog(XOAuthAuthenticationManager.class);
+    public static Logger logger = LoggerFactory.getLogger(XOAuthAuthenticationManager.class);
 
     private final RestTemplate trustingRestTemplate;
     private final RestTemplate nonTrustingRestTemplate;
@@ -193,7 +194,12 @@ public class XOAuthAuthenticationManager extends ExternalLoginAuthenticationMana
 
         setOrigin(codeToken.getOrigin());
         if (provider == null) {
-            provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
+            try {
+                provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
+            } catch (EmptyResultDataAccessException e) {
+                logger.info("No provider found for given origin");
+                throw new InsufficientAuthenticationException("Could not resolve identity provider with given origin.");
+            }
         }
 
         if (provider != null && provider.getConfig() instanceof AbstractXOAuthIdentityProviderDefinition) {
@@ -488,10 +494,10 @@ public class XOAuthAuthenticationManager extends ExternalLoginAuthenticationMana
                 //logger.debug("Deserializing id_token claims: " + decodeIdToken.getClaims());
                 return jsonData;
             } catch (UnsupportedEncodingException e) {
-                logger.error(e);
+                logger.error("Unsupported encoding", e);
                 return null;
             } catch (Exception e) {
-                logger.error(e);
+                logger.error("Exception", e);
                 return null;
             }
         } else {

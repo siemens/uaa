@@ -12,8 +12,8 @@
  *******************************************************************************/
 package org.cloudfoundry.identity.uaa.scim.jdbc;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.cloudfoundry.identity.uaa.audit.AuditEventType;
 import org.cloudfoundry.identity.uaa.audit.event.AbstractUaaEvent;
 import org.cloudfoundry.identity.uaa.audit.event.SystemDeletable;
@@ -53,10 +53,10 @@ public class JdbcScimGroupProvisioning extends AbstractQueryable<ScimGroup>
     private JdbcTemplate jdbcTemplate;
     private JdbcScimGroupMembershipManager membershipManager;
 
-    private final Log logger = LogFactory.getLog(getClass());
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Override
-    public Log getLogger() {
+    public Logger getLogger() {
         return logger;
     }
 
@@ -299,8 +299,8 @@ public class JdbcScimGroupProvisioning extends AbstractQueryable<ScimGroup>
     }
 
     public int deleteByIdentityZone(String zoneId) {
-        jdbcTemplate.update(DELETE_ZONE_ADMIN_MEMBERSHIP_BY_ZONE, IdentityZone.getUaa().getId(), "zones." + zoneId + ".%");
-        jdbcTemplate.update(DELETE_ZONE_ADMIN_GROUPS_BY_ZONE, IdentityZone.getUaa().getId(), "zones." + zoneId + ".%");
+        jdbcTemplate.update(DELETE_ZONE_ADMIN_MEMBERSHIP_BY_ZONE, IdentityZone.getUaaZoneId(), "zones." + zoneId + ".%");
+        jdbcTemplate.update(DELETE_ZONE_ADMIN_GROUPS_BY_ZONE, IdentityZone.getUaaZoneId(), "zones." + zoneId + ".%");
         jdbcTemplate.update(DELETE_EXTERNAL_GROUP_BY_ZONE, zoneId);
         jdbcTemplate.update(DELETE_GROUP_MEMBERSHIP_BY_ZONE, zoneId);
         return jdbcTemplate.update(DELETE_GROUP_BY_ZONE, zoneId);

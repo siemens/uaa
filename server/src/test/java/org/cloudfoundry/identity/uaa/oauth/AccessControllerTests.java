@@ -1,15 +1,3 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
- *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
- *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
 package org.cloudfoundry.identity.uaa.oauth;
 
 import org.cloudfoundry.identity.uaa.approval.ApprovalStore;
@@ -19,7 +7,7 @@ import org.cloudfoundry.identity.uaa.scim.ScimGroup;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupProvisioning;
 import org.cloudfoundry.identity.uaa.scim.jdbc.JdbcScimGroupProvisioning;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
-import org.cloudfoundry.identity.uaa.zone.InMemoryClientServicesExtentions;
+import org.cloudfoundry.identity.uaa.zone.InMemoryMultitenantClientServices;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -43,17 +31,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * @author Dave Syer
- *
- */
 public class AccessControllerTests {
 
     private AccessController controller = new AccessController();
 
     @Test
     public void testSunnyDay() throws Exception {
-        InMemoryClientServicesExtentions clientDetailsService = new InMemoryClientServicesExtentions();
+        InMemoryMultitenantClientServices clientDetailsService = new InMemoryMultitenantClientServices(null);
         clientDetailsService.setClientDetailsStore(IdentityZoneHolder.get().getId(), Collections.singletonMap("client", new BaseClientDetails()));
         controller.setClientDetailsService(clientDetailsService);
         controller.setApprovalStore(mock(ApprovalStore.class));
@@ -66,7 +50,7 @@ public class AccessControllerTests {
     @SuppressWarnings("unchecked")
     @Test
     public void testSchemePreserved() throws Exception {
-        InMemoryClientServicesExtentions clientDetailsService = new InMemoryClientServicesExtentions();
+        InMemoryMultitenantClientServices clientDetailsService = new InMemoryMultitenantClientServices(null);
         clientDetailsService.setClientDetailsStore(IdentityZoneHolder.get().getId(), Collections.singletonMap("client", new BaseClientDetails()));
         controller.setClientDetailsService(clientDetailsService);
         controller.setApprovalStore(mock(ApprovalStore.class));
@@ -84,7 +68,7 @@ public class AccessControllerTests {
 
     @Test
     public void testClientDisplayName() throws Exception {
-        InMemoryClientServicesExtentions clientDetailsService = new InMemoryClientServicesExtentions();
+        InMemoryMultitenantClientServices clientDetailsService = new InMemoryMultitenantClientServices(null);
         BaseClientDetails client = new BaseClientDetails();
         client.addAdditionalInformation(ClientConstants.CLIENT_NAME, "The Client Name");
         clientDetailsService.setClientDetailsStore(IdentityZoneHolder.get().getId(), Collections.singletonMap("client-id", client));
@@ -113,7 +97,7 @@ public class AccessControllerTests {
     }
 
     private void performAutoApprovedScopeTest(List<String> autoApprovedScopes) throws Exception {
-        InMemoryClientServicesExtentions clientDetailsService = new InMemoryClientServicesExtentions();
+        InMemoryMultitenantClientServices clientDetailsService = new InMemoryMultitenantClientServices(null);
         BaseClientDetails client = new BaseClientDetails();
         client.addAdditionalInformation(ClientConstants.CLIENT_NAME, "The Client Name");
         client.setAutoApproveScopes(autoApprovedScopes);

@@ -22,13 +22,13 @@ import org.cloudfoundry.identity.uaa.resources.jdbc.SimpleSearchQueryConverter;
 import org.cloudfoundry.identity.uaa.scim.ScimUser;
 import org.cloudfoundry.identity.uaa.scim.ScimUser.Group;
 import org.cloudfoundry.identity.uaa.scim.ScimUser.PhoneNumber;
-import org.cloudfoundry.identity.uaa.scim.bootstrap.ScimUserBootstrapTests;
 import org.cloudfoundry.identity.uaa.scim.exception.InvalidScimResourceException;
 import org.cloudfoundry.identity.uaa.scim.exception.ScimResourceAlreadyExistsException;
 import org.cloudfoundry.identity.uaa.scim.exception.ScimResourceNotFoundException;
 import org.cloudfoundry.identity.uaa.scim.test.TestUtils;
 import org.cloudfoundry.identity.uaa.test.JdbcTestBase;
 import org.cloudfoundry.identity.uaa.user.UaaAuthority;
+import org.cloudfoundry.identity.uaa.util.FakePasswordEncoder;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.cloudfoundry.identity.uaa.zone.JdbcIdentityZoneProvisioning;
@@ -39,10 +39,9 @@ import org.junit.Test;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.bcrypt.BCrypt;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.common.util.RandomValueStringGenerator;
 
 import java.sql.Timestamp;
@@ -99,28 +98,31 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
 
     private RandomValueStringGenerator generator = new RandomValueStringGenerator();
     private JdbcPagingListFactory pagingListFactory;
+    private FakePasswordEncoder fakePasswordEncoder;
 
     @Before
-    public void initJdbcScimUserProvisioningTests() throws Exception {
+    public void initJdbcScimUserProvisioningTests() {
         pagingListFactory = new JdbcPagingListFactory(jdbcTemplate, limitSqlAdapter);
-        db = new JdbcScimUserProvisioning(jdbcTemplate, pagingListFactory);
+
+        fakePasswordEncoder = new FakePasswordEncoder();
+        db = new JdbcScimUserProvisioning(jdbcTemplate, pagingListFactory, fakePasswordEncoder);
+
         zoneDb = new JdbcIdentityZoneProvisioning(jdbcTemplate);
         providerDb = new JdbcIdentityProviderProvisioning(jdbcTemplate);
         SimpleSearchQueryConverter filterConverter = new SimpleSearchQueryConverter();
-        Map<String, String> replaceWith = new HashMap<String, String>();
+        Map<String, String> replaceWith = new HashMap<>();
         replaceWith.put("emails\\.value", "email");
         replaceWith.put("groups\\.display", "authorities");
         replaceWith.put("phoneNumbers\\.value", "phoneNumber");
         filterConverter.setAttributeNameMapper(new SimpleAttributeNameMapper(replaceWith));
         db.setQueryConverter(filterConverter);
-        BCryptPasswordEncoder pe = new BCryptPasswordEncoder(4);
 
         existingUserCount = jdbcTemplate.queryForObject("select count(id) from users", Integer.class);
 
         defaultIdentityProviderId = jdbcTemplate.queryForObject("select id from identity_provider where origin_key = ? and identity_zone_id = ?", String.class, OriginKeys.UAA, "uaa");
 
-        addUser(JOE_ID, "joe", pe.encode("joespassword"), "joe@joe.com", "Joe", "User", "+1-222-1234567", defaultIdentityProviderId, "uaa");
-        addUser(MABEL_ID, "mabel", pe.encode("mabelspassword"), "mabel@mabel.com", "Mabel", "User", "", defaultIdentityProviderId, "uaa");
+        addUser(JOE_ID, "joe", fakePasswordEncoder.encode("joespassword"), "joe@joe.com", "Joe", "User", "+1-222-1234567", defaultIdentityProviderId, "uaa");
+        addUser(MABEL_ID, "mabel", fakePasswordEncoder.encode("mabelspassword"), "mabel@mabel.com", "Mabel", "User", "", defaultIdentityProviderId, "uaa");
     }
 
     private String createUserForDelete() {
@@ -179,7 +181,7 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
         assertEquals(LOGIN_SERVER, created.getOrigin());
         assertThat(jdbcTemplate.queryForObject(
                          "select count(*) from users where origin=? and identity_zone_id=?",
-                         new Object[] {LOGIN_SERVER,IdentityZone.getUaa().getId()},
+                         new Object[] {LOGIN_SERVER,IdentityZone.getUaaZoneId()},
                          Integer.class
                      ), is(1)
         );
@@ -189,9 +191,9 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
         IdentityProvider loginServer =
             new IdentityProvider()
                 .setOriginKey(LOGIN_SERVER)
-                .setIdentityZoneId(IdentityZone.getUaa().getId());
-        db.onApplicationEvent(new EntityDeletedEvent<>(loginServer, null));
-        assertThat(jdbcTemplate.queryForObject("select count(*) from users where origin=? and identity_zone_id=?", new Object[] {LOGIN_SERVER, IdentityZone.getUaa().getId()}, Integer.class), is(0));
+                .setIdentityZoneId(IdentityZone.getUaaZoneId());
+        db.onApplicationEvent(new EntityDeletedEvent<>(loginServer, null, IdentityZoneHolder.getCurrentZoneId()));
+        assertThat(jdbcTemplate.queryForObject("select count(*) from users where origin=? and identity_zone_id=?", new Object[] {LOGIN_SERVER, IdentityZone.getUaaZoneId()}, Integer.class), is(0));
         assertThat(jdbcTemplate.queryForObject("select count(*) from group_membership where member_id=?", new Object[] {created.getId()}, Integer.class), is(0));
     }
 
@@ -216,7 +218,7 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
             new IdentityProvider()
                 .setOriginKey(LOGIN_SERVER)
                 .setIdentityZoneId(zone.getId());
-        db.onApplicationEvent(new EntityDeletedEvent<>(loginServer, null));
+        db.onApplicationEvent(new EntityDeletedEvent<>(loginServer, null, IdentityZoneHolder.getCurrentZoneId()));
         assertThat(jdbcTemplate.queryForObject("select count(*) from users where origin=? and identity_zone_id=?", new Object[] {LOGIN_SERVER, zone.getId()}, Integer.class), is(0));
         assertThat(jdbcTemplate.queryForObject("select count(*) from group_membership where member_id=?", new Object[] {created.getId()}, Integer.class), is(0));
     }
@@ -238,7 +240,7 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
         addMembership(created.getId(), created.getOrigin());
         assertThat(jdbcTemplate.queryForObject("select count(*) from group_membership where member_id=?", new Object[] {created.getId()}, Integer.class), is(1));
 
-        db.onApplicationEvent(new EntityDeletedEvent<>(zone, null));
+        db.onApplicationEvent(new EntityDeletedEvent<>(zone, null, IdentityZoneHolder.getCurrentZoneId()));
         assertThat(jdbcTemplate.queryForObject("select count(*) from users where origin=? and identity_zone_id=?", new Object[] {UAA, zone.getId()}, Integer.class), is(0));
         assertThat(jdbcTemplate.queryForObject("select count(*) from group_membership where member_id=?", new Object[] {created.getId()}, Integer.class), is(0));
     }
@@ -252,13 +254,13 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
         assertEquals("jo@foo.com", created.getUserName());
         assertNotNull(created.getId());
         assertEquals(UAA, created.getOrigin());
-        assertThat(jdbcTemplate.queryForObject("select count(*) from users where origin=? and identity_zone_id=?", new Object[] {UAA, IdentityZone.getUaa().getId()}, Integer.class), is(3));
+        assertThat(jdbcTemplate.queryForObject("select count(*) from users where origin=? and identity_zone_id=?", new Object[] {UAA, IdentityZone.getUaaZoneId()}, Integer.class), is(3));
         IdentityProvider loginServer =
             new IdentityProvider()
                 .setOriginKey(UAA)
-                .setIdentityZoneId(IdentityZone.getUaa().getId());
-        db.onApplicationEvent(new EntityDeletedEvent<>(loginServer, null));
-        assertThat(jdbcTemplate.queryForObject("select count(*) from users where origin=? and identity_zone_id=?", new Object[] {UAA, IdentityZone.getUaa().getId()}, Integer.class), is(3));
+                .setIdentityZoneId(IdentityZone.getUaaZoneId());
+        db.onApplicationEvent(new EntityDeletedEvent<>(loginServer, null, IdentityZoneHolder.getCurrentZoneId()));
+        assertThat(jdbcTemplate.queryForObject("select count(*) from users where origin=? and identity_zone_id=?", new Object[] {UAA, IdentityZone.getUaaZoneId()}, Integer.class), is(3));
     }
 
     @Test
@@ -279,7 +281,7 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
             new IdentityProvider()
                 .setOriginKey(UAA)
                 .setIdentityZoneId(zone.getId());
-        db.onApplicationEvent(new EntityDeletedEvent<>(loginServer, null));
+        db.onApplicationEvent(new EntityDeletedEvent<>(loginServer, null, IdentityZoneHolder.getCurrentZoneId()));
         assertThat(jdbcTemplate.queryForObject("select count(*) from users where origin=? and identity_zone_id=?", new Object[] {UAA, zone.getId()}, Integer.class), is(1));
     }
 
@@ -376,7 +378,7 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
     @Test
     public void validateOriginAndExternalIDDuringCreateAndUpdate() {
         String origin = "test";
-        ScimUserBootstrapTests.addIdentityProvider(jdbcTemplate, origin);
+        addIdentityProvider(jdbcTemplate, origin);
         String externalId = "testId";
         ScimUser user = new ScimUser(null, "jo@foo.com", "Jo", "User");
         user.setOrigin(origin);
@@ -393,7 +395,7 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
         assertEquals(origin, created.getOrigin());
         assertEquals(externalId, created.getExternalId());
         String origin2 = "test2";
-        ScimUserBootstrapTests.addIdentityProvider(jdbcTemplate,origin2);
+        addIdentityProvider(jdbcTemplate,origin2);
         String externalId2 = "testId2";
         created.setOrigin(origin2);
         created.setExternalId(externalId2);
@@ -436,7 +438,7 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
     public void canReadScimUserWithMissingEmail() {
         // Create a user with no email address, reflecting previous behavior
 
-        JdbcScimUserProvisioning noValidateProvisioning = new JdbcScimUserProvisioning(jdbcTemplate, pagingListFactory) {
+        JdbcScimUserProvisioning noValidateProvisioning = new JdbcScimUserProvisioning(jdbcTemplate, pagingListFactory, new FakePasswordEncoder()) {
             @Override
             public ScimUser retrieve(String id, String zoneId) {
                 ScimUser createdUserId = new ScimUser();
@@ -545,28 +547,18 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
         assertEquals(OriginKeys.LDAP, joe.getOrigin());
     }
 
-    /*
-     * @Test(expected = InvalidScimResourceException.class)
-     * public void updateWithCapitalLetterInUsernameIsError() throws Exception {
-     * ScimUser jo = new ScimUser(null, "joSephine", "Jo", "NewUser");
-     * jo.addEmail("jo@blah.com");
-     * jo.setVersion(1);
-     * ScimUser joe = db.update(JOE_ID, jo);
-     * assertEquals("joe", joe.getUserId());
-     * }
-     */
     @Test
     public void canChangePasswordWithoutOldPassword() throws Exception {
         db.changePassword(JOE_ID, null, "koala123$marissa", IdentityZoneHolder.get().getId());
         String storedPassword = jdbcTemplate.queryForObject("SELECT password from users where ID=?", String.class, JOE_ID);
-        assertTrue(BCrypt.checkpw("koala123$marissa", storedPassword));
+        assertTrue(fakePasswordEncoder.matches("koala123$marissa", storedPassword));
     }
 
     @Test
     public void canChangePasswordWithCorrectOldPassword() throws Exception {
         db.changePassword(JOE_ID, "joespassword", "koala123$marissa", IdentityZoneHolder.get().getId());
         String storedPassword = jdbcTemplate.queryForObject("SELECT password from users where ID=?", String.class, JOE_ID);
-        assertTrue(BCrypt.checkpw("koala123$marissa", storedPassword));
+        assertTrue(fakePasswordEncoder.matches("koala123$marissa", storedPassword));
     }
 
     @Test(expected = BadCredentialsException.class)
@@ -631,7 +623,7 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
         String tmpUserId = createUserForDelete();
         ScimUser user = db.retrieve(tmpUserId, IdentityZoneHolder.get().getId());
         db.setDeactivateOnDelete(false);
-        db.onApplicationEvent(new EntityDeletedEvent<Object>(user, mock(Authentication.class)));
+        db.onApplicationEvent(new EntityDeletedEvent<Object>(user, mock(Authentication.class), IdentityZoneHolder.getCurrentZoneId()));
         assertEquals(0, jdbcTemplate.queryForList("select * from users where id=?", tmpUserId).size());
         assertEquals(0, db.query("username eq \"" + tmpUserId + "\"", IdentityZoneHolder.get().getId()).size());
     }
@@ -745,7 +737,7 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
         addUser("cba09242-aa43-4247-9aa0-b5c75c281f94", "user@example.com", "password", "user@example.com", "first", "user", "90438", defaultIdentityProviderId, "uaa");
 
         String origin = "test-origin";
-        createOtherIdentityProvider(origin, IdentityZone.getUaa().getId());
+        createOtherIdentityProvider(origin, IdentityZone.getUaaZoneId());
 
         ScimUser scimUser = new ScimUser(null, "user@example.com", "User", "Example");
         ScimUser.Email email = new ScimUser.Email();
@@ -1066,4 +1058,9 @@ public class JdbcScimUserProvisioningTests extends JdbcTestBase {
         assertEquals("+1-222-1234567", joe.getPhoneNumbers().get(0).getValue());
         assertNull(joe.getGroups());
     }
+
+    private static void addIdentityProvider(JdbcTemplate jdbcTemplate, String originKey) {
+        jdbcTemplate.update("insert into identity_provider (id,identity_zone_id,name,origin_key,type) values (?,'uaa',?,?,'UNKNOWN')", UUID.randomUUID().toString(), originKey, originKey);
+    }
+
 }
