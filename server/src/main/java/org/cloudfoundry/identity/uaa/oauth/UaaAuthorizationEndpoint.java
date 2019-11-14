@@ -143,13 +143,13 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
         super.setOAuth2RequestFactory(oAuth2RequestFactory);
         super.setClientDetailsService(clientDetailsService);
         super.setTokenGranter(tokenGranter);
-
-    private static final List<String> supported_response_types = Arrays.asList("code", "token", "id_token");
-    
-    private PkceValidationService pkceValidationService;
         this.sessionAttributeStore = new DefaultSessionAttributeStore();
         this.implicitLock = new Object();
     }
+
+    private static final List<String> supported_response_types = Arrays.asList("code", "token", "id_token");
+
+    private PkceValidationService pkceValidationService;
 
     @RequestMapping(value = "/oauth/authorize")
     public ModelAndView authorize(Map<String, Object> model,
