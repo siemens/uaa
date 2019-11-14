@@ -119,7 +119,7 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
 
     private final SessionAttributeStore sessionAttributeStore;
     private final Object implicitLock;
-    private PkceValidationService pkceValidationService;
+    private final PkceValidationService pkceValidationService;
 
     /**
      * @param tokenGranter created by <oauth:authorization-server/>
@@ -133,17 +133,20 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
             final @Qualifier("openIdSessionStateCalculator") OpenIdSessionStateCalculator openIdSessionStateCalculator,
             final @Qualifier("authorizationRequestManager") OAuth2RequestFactory oAuth2RequestFactory,
             final @Qualifier("jdbcClientDetailsService") MultitenantClientServices clientDetailsService,
-            final @Qualifier("oauth2TokenGranter") TokenGranter tokenGranter) {
+            final @Qualifier("oauth2TokenGranter") TokenGranter tokenGranter,
+            final @Qualifier("pkceValidationServices") PkceValidationService pkceValidationService) {
         this.redirectResolver = redirectResolver;
         this.userApprovalHandler = userApprovalHandler;
         this.oauth2RequestValidator = oauth2RequestValidator;
         this.authorizationCodeServices = authorizationCodeServices;
         this.hybridTokenGranterForAuthCode = hybridTokenGranterForAuthCode;
         this.openIdSessionStateCalculator = openIdSessionStateCalculator;
+        this.pkceValidationService = pkceValidationService;
 
         super.setOAuth2RequestFactory(oAuth2RequestFactory);
         super.setClientDetailsService(clientDetailsService);
         super.setTokenGranter(tokenGranter);
+
         this.sessionAttributeStore = new DefaultSessionAttributeStore();
         this.implicitLock = new Object();
     }
@@ -834,13 +837,4 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
         return ((MultitenantClientServices) super.getClientDetailsService())
                 .loadClientByClientId(clientId, IdentityZoneHolder.get().getId());
     }
-
-	public PkceValidationService getPkceValidationService() {
-		return pkceValidationService;
-	}
-
-	public void setPkceValidationService(PkceValidationService pkceValidationService) {
-		this.pkceValidationService = pkceValidationService;
-	}
-
 }
