@@ -65,6 +65,14 @@ public class UaaAuthorizationEndpointTest {
         oAuth2RequestFactory = mock(OAuth2RequestFactory.class);
         authorizationCodeServices = mock(AuthorizationCodeServices.class);
         openIdSessionStateCalculator = mock(OpenIdSessionStateCalculator.class);
+
+        PlainPkceVerifier plainPkceVerifier = new PlainPkceVerifier();
+        S256PkceVerifier s256PkceVerifier = new S256PkceVerifier();
+        Map<String,PkceVerifier> pkceVerifiers = new HashMap<String,PkceVerifier>();
+        pkceVerifiers.put(plainPkceVerifier.getCodeChallengeMethod(), plainPkceVerifier);
+        pkceVerifiers.put(s256PkceVerifier.getCodeChallengeMethod(), s256PkceVerifier);
+        pkceValidationService = new PkceValidationService(pkceVerifiers);
+
         uaaAuthorizationEndpoint = new UaaAuthorizationEndpoint(
                 null,
                 new DefaultUserApprovalHandler(),
@@ -74,16 +82,9 @@ public class UaaAuthorizationEndpointTest {
                 openIdSessionStateCalculator,
                 oAuth2RequestFactory,
                 null,
-                null);
+                null,
+                pkceValidationService);
         responseTypes = new HashSet<>();
-
-        PlainPkceVerifier plainPkceVerifier = new PlainPkceVerifier();
-        S256PkceVerifier s256PkceVerifier = new S256PkceVerifier();
-        Map<String,PkceVerifier> pkceVerifiers = new HashMap<String,PkceVerifier>();
-        pkceVerifiers.put(plainPkceVerifier.getCodeChallengeMethod(), plainPkceVerifier);
-        pkceVerifiers.put(s256PkceVerifier.getCodeChallengeMethod(), s256PkceVerifier);
-        pkceValidationService = new PkceValidationService(pkceVerifiers);
-        uaaAuthorizationEndpoint.setPkceValidationService(pkceValidationService);
 
         when(openIdSessionStateCalculator.calculate("userid", null, "http://example.com")).thenReturn("opbshash");
         when(authorizationCodeServices.createAuthorizationCode(any(OAuth2Authentication.class))).thenReturn("code");
