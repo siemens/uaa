@@ -19,9 +19,9 @@
           class="org.cloudfoundry.identity.uaa.security.web.TokenEndpointPostProcessor"/>
 
     <oauth:authorization-server
-        client-details-service-ref="jdbcClientDetailsService"
-        token-services-ref="tokenServices" user-approval-handler-ref="userManagedApprovalHandler"
-        authorization-request-manager-ref="authorizationRequestManager" request-validator-ref="oauth2RequestValidator">
+            client-details-service-ref="jdbcClientDetailsService"
+            token-services-ref="tokenServices" user-approval-handler-ref="userManagedApprovalHandler"
+            authorization-request-manager-ref="authorizationRequestManager" request-validator-ref="oauth2RequestValidator">
         <!-- Removed default AuthorizationCodeTokenGranter to be able to introduce the PkceEnhancedAuthorizationCodeTokenGranter see below -->
         <!-- <oauth:authorization-code authorization-code-services-ref="authorizationCodeServices"/> -->
         <oauth:authorization-code disabled="true" />
