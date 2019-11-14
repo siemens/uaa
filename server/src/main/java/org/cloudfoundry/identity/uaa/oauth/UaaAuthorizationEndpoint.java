@@ -119,6 +119,7 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
 
     private final SessionAttributeStore sessionAttributeStore;
     private final Object implicitLock;
+    private PkceValidationService pkceValidationService;
 
     /**
      * @param tokenGranter created by <oauth:authorization-server/>
@@ -146,10 +147,6 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
         this.sessionAttributeStore = new DefaultSessionAttributeStore();
         this.implicitLock = new Object();
     }
-
-    private static final List<String> supported_response_types = Arrays.asList("code", "token", "id_token");
-
-    private PkceValidationService pkceValidationService;
 
     @RequestMapping(value = "/oauth/authorize")
     public ModelAndView authorize(Map<String, Object> model,
